@@ -17,7 +17,7 @@ class LLMCore:
             chat_format= "chatml",
             n_gpu_layers=-1,
             n_ctx=2048,
-            n_threads=4,
+            n_threads=2, #TODO test 2 vs 4
             n_batch=512,
             use_mmap=True,
             use_mlock=True,
@@ -67,7 +67,7 @@ class LLMCore:
                 if not token:
                     continue
                 
-                buffer += token['choices'][0]['message']['content']
+                buffer += token['choices'][0]['delta'].get('content', '')
 
                 if self.should_emit(buffer, last_emit):
                     self.output_queue.put(buffer.strip())
@@ -92,15 +92,20 @@ class LLMCore:
             return False
 
         if buffer[-1] in ".!?":
+            print("encountered .!?")
             return True
 
-        if buffer[-1] in ",;:" and len(buffer) > 20:
+        if buffer[-1] in ",;:":
+            print("encountered ,;:")
+            return True
+            #TODO does this need to be concetinated? <- + ^
+
+        if time() - last_emit > 0.4:  
+            print("last_emit")
             return True
 
-        if len(buffer) > 60:
-            return True
-
-        if time() - last_emit > 0.35:
+        if len(buffer) > 80:
+            print("buffer 60")
             return True
 
         return False           
@@ -126,4 +131,5 @@ class LLMCore:
         self.worker.join()
 
 LLMCore = LLMCore()
-print("llm said: ", LLMCore.generate("hello, what is the role of an orchestrator in an ai app"), "\n")
+for chunck in LLMCore.generate("hello, what is the role of an orchestrator in an ai app"):
+    print("llm said: ", chunck, "\n")
