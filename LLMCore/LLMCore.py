@@ -81,12 +81,6 @@ class LLMCore:
 
             self.queue.task_done()
 
-    def llm_buffer(self):
-        if len(self.buffer) > 0:
-
-
-            self.buffer = ""
-
     def should_emit(self, buffer, last_emit):
         if not buffer:
             return False
@@ -95,12 +89,11 @@ class LLMCore:
             print("encountered .!?")
             return True
 
-        if buffer[-1] in ",;:":
+        if buffer[-1] in ",;:" and len(buffer) > 30:
             print("encountered ,;:")
             return True
-            #TODO does this need to be concetinated? <- + ^
 
-        if time() - last_emit > 0.4:  
+        if len(buffer) > 20 and time() - last_emit > 0.4:
             print("last_emit")
             return True
 
@@ -114,7 +107,10 @@ class LLMCore:
         self.queue.put(prompt)
 
         while True:
-            llm_output = self.output_queue.get()
+            try:
+                llm_output = self.output_queue.get(timeout=1)
+            except queue.Empty:
+                continue
 
             if llm_output is None:
                 break
