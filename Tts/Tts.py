@@ -10,7 +10,7 @@ class Tts:
         self.model = model
         self.tts_queue = Queue()
         self.is_playing = False
-        self.thread = Thread(target=self.tts_worker, daemon=False)
+        self.thread = Thread(target=self.tts_worker, daemon=True)
         self.thread.start()
 
     def speak(self, text):

@@ -117,15 +117,8 @@ class LLMCore:
 
             yield llm_output
 
-    def get(self):
-        return self.output_queue.get()
-
     def stop(self):
         self.queue.clear()
         self.output_queue.clear()
         self.done = True
         self.worker.join()
-
-LLMCore = LLMCore()
-for chunck in LLMCore.generate("hello, what is the role of an orchestrator in an ai app"):
-    print("llm said: ", chunck, "\n")

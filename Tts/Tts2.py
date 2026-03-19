@@ -34,12 +34,12 @@ class TTS:
         self.output_queue = queue.Queue()
 
         self.worker = threading.Thread(
-            target=self._tts_worker,
+            target=self.tts_worker,
             daemon=True
         )
         self.worker.start()
 
-    def _tts_worker(self):
+    def tts_worker(self):
         while True:
             text = self.queue.get()
 
