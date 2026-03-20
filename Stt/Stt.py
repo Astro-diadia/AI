@@ -2,8 +2,8 @@
 from faster_whisper import WhisperModel
 # from speechbrain.pretrained import EncoderClassifier
 from Stt.AudioCapture import AudioCapture
-from Stt.Buffer import Buffer
 from time import time
+import queue
 # import numpy as np
 
 # py "D:\Stt\Stt.py"
@@ -15,7 +15,7 @@ class Stt:
         #     source="speechbrain/spkrec-ecapa-voxceleb",
         #     run_opts={"device": "cuda"}
         # )
-
+ 
         # self.dim = 192
         # self.index = IndexFlatIP(self.dim)
         # self.speaker_db = []
@@ -24,9 +24,24 @@ class Stt:
         self.audio.capture_mic()
         self.audio.capture_system()
 
-        self.system_buffer = Buffer(0.05)
-        self.mic_buffer = Buffer(0.015)
+        self.output_queue = queue.Queue()
 
+        self.done = False
+        self.worker = threading.Thread(
+            target=self.tts_worker,
+            daemon=True
+        )
+        self.worker.start()
+
+    def stt_loop(self):
+        while not self.done:
+            mic_data = self.process_mic()
+            if mic_data:
+                self.output_queue.put(mic_data)
+
+            sys_data = self.process_system()
+            if sys_data:
+                self.output_queue.put(sys_data)
 
     # def get_embedding(self, audio_file):
     #     emb = self.spk_model.encode_batch(audio_file)
@@ -49,16 +64,28 @@ class Stt:
     #         self.speaker_db.append(new_id)
     #         return new_id
 
+    def classify_direction(block, threshold=0.01, balance=1.2):
+        left = np.abs(block[:, 0]).mean()
+        right = np.abs(block[:, 1]).mean()
+
+        if left < threshold and right < threshold:
+            return "silence"
+
+        ratio = left / (right + 1e-6)
+
+        if ratio > balance:
+            return "left"
+        elif ratio < 1 / balance:
+            return "right"
+        else:
+            return "center"
+
     def wisper(self, source, chunk):
-        # print(self.stt_model.model.device)
-        # print(self.stt_model.model.compute_type)
         segments, _ = self.stt_model.transcribe(
             chunk,
             beam_size=1,
             vad_filter=False,
-            condition_on_previous_text=False,
-            # language="en",
-            # language="ru"
+            condition_on_previous_text=False
         )
         text = " ".join(seg.text.strip() for seg in segments).strip()
 
@@ -68,18 +95,43 @@ class Stt:
         return text
 
     def process_system(self):
-        chunk = self.system_buffer.process_block(self.audio.get_system_audio())
+        raw_block = self.audio.get_system_audio()
+
+        direction = classify_direction(raw_block)
 
         if chunk is None:
             return None
 
-        return self.wisper("system", chunk)
+        text = self.wisper("system", chunk)
+
+        if text:
+            return {
+                "text": text,
+                "direction": direction,
+                "source": "system"
+            }
+
+        return None
 
     def process_mic(self):
-        chunk = self.mic_buffer.process_block(self.audio.get_mic_audio())
+        raw_block = self.audio.get_mic_audio()
+
+
 
         if chunk is None:
             return None
 
-        return self.wisper("mic", chunk)
+        text = self.wisper("mic", chunk)
 
+        if text:
+            return {
+                "text": text,
+                "direction": "center",
+                "source": "mic"
+            }
+
+        return None
+
+    def stop(self):
+        self.done = True
+        slef.thread.join()

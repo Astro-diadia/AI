@@ -5,7 +5,7 @@ class Buffer:
     def __init__(self, speech_threshold=0.048, samplerate=16000, silence_time=0.8):
         self.speech_threshold = speech_threshold
         self.silence_time = silence_time
-        self.buffer = []
+        self.buffer = []  
         self.last_speech = None
 
     def process_block(self, block):
