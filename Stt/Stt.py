@@ -105,6 +105,7 @@ class Stt:
         text = self.wisper("system", chunk)
 
         if text:
+            
             return {
                 "text": text,
                 "direction": direction,
@@ -116,7 +117,7 @@ class Stt:
     def process_mic(self):
         raw_block = self.audio.get_mic_audio()
 
-
+        
 
         if chunk is None:
             return None
@@ -126,7 +127,7 @@ class Stt:
         if text:
             return {
                 "text": text,
-                "direction": "center",
+                "direction": "center", #remove?
                 "source": "mic"
             }
 
