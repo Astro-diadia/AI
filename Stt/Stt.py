@@ -4,7 +4,7 @@ from faster_whisper import WhisperModel
 from Stt.AudioCapture import AudioCapture
 from Stt.Buffer import Buffer
 from time import time
-import queue
+from queue import Queue, put, get
 # import numpy as np
 
 # py "D:\Stt\Stt.py"
@@ -25,12 +25,14 @@ class Stt:
         self.audio.capture_mic()
         self.audio.capture_system()
 
-        self.mic_buffer = Buffer()
-        self.system_buffer = Buffer()
+        self.prev_ratio = 0.0
+        self.buffer_direction = []
+        self.direction = "center"
 
-        self.output_queue = queue.Queue()
+        self.system_buffer = Buffer(0.05)
+        self.mic_buffer = Buffer(0.015)
 
-        self.prev_ratio = 1
+        self.output_queue = Queue()
 
         self.done = False
         self.worker = threading.Thread(
@@ -41,14 +43,8 @@ class Stt:
 
     def stt_worker(self):
         while not self.done:
-            chunk_system = self.audio.get_system_audio()
-            chunk_mic = self.audio.get_mic_audio()
-
-                        
-
-            if time() - self.last_speech >= self.silence_time:
-                
-
+            chunk_system = self.system_buffer(self.audio.get_system_audio())
+            chunk_mic = self.mic_buffer(self.audio.get_mic_audio())
                 mic_data = self.process_mic()
                 if mic_data:
                     self.output_queue.put(mic_data)
@@ -78,23 +74,6 @@ class Stt:
     #         self.speaker_db.append(new_id)
     #         return new_id
 
-    def classify_direction(chunk, threshold=0.02, balance=1.2):
-        left = np.abs(chunk[:, 0]).mean()
-        right = np.abs(chunk[:, 1]).mean()
-
-        ratio = (left - right) / (left + right + 1e-6)
-
-        smoothed_ratio = 0.8 * self.prev_ratio + 0.2 * ratio
-
-        self.prev_ratio = smoothed_ratio
-
-        if ratio > balance:
-            return "left"
-        elif ratio < 1 / balance:
-            return "right"
-        else:
-            return "center"
-
     def wisper(self, source, chunk):
         segments, _ = self.stt_model.transcribe(
             chunk,
@@ -107,12 +86,39 @@ class Stt:
         if not text:
             return None
 
-        return text
+        yield text
+
+    def classify_direction(self, chunk, threshold=0.1):
+        self.buffer_direction.append(chunk)
+
+        if len(self.buffer_direction) >= 8:
+            big_chunk = np.concatenate(self.buffer_direction)
+
+            left = np.abs(big_chunk[:, 0]).mean()
+            right = np.abs(big_chunk[:, 1]).mean()
+
+            ratio = (left - right) / (left + right + 1e-6)
+
+            smoothed_ratio = 0.8 * self.prev_ratio + 0.2 * ratio
+
+            self.prev_ratio = smoothed_ratio
+
+            if smoothed_ratio > threshold:
+                return "left"
+            elif smoothed_ratio < 1 / threshold:
+                return "right"
+            else:
+                return "center"
+        return None
 
     def process_system(self, chunk):
         text = self.wisper("system", chunk)
 
-        direction = classify_direction(chunk)
+        direction_local = self.classify_direction(chunk)
+
+        if is not None:
+            self.direction = direction_local
+            self.buffer_direction.clear()
 
         if text:
             return {
@@ -129,7 +135,7 @@ class Stt:
         if text:
             return {
                 "text": text,
-                "direction": "center", #remove?
+                "direction": "center",
                 "source": "mic"
             }
 

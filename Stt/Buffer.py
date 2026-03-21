@@ -2,17 +2,18 @@ import numpy as np
 from time import time
 
 class Buffer:
-    def __init__(self, speech_threshold=0.048, samplerate=16000, silence_time=0.8):
+    def __init__(self, speech_threshold=0.048, samplerate=16000, silence_time=0.4):
         self.speech_threshold = speech_threshold
         self.silence_time = silence_time
-        self.buffer = []  
+        self.buffer_stt = []  
         self.last_speech = None
 
-    def process_block(self, block):
-        block = block.mean(axis=1).astype(np.float32)
+    def process_chunk(self, chunk):
+        chunk = chunk.astype(np.float32)
 
-        if np.abs(block).mean() > self.speech_threshold:
-            self.buffer.append(block)
+        if np.abs(chunk).mean() > self.speech_threshold:
+            self.buffer_stt.append(chunk.mean(axis=1))
+
             self.last_speech = time()
             return None
 
@@ -20,13 +21,17 @@ class Buffer:
             return None
 
         if time() - self.last_speech >= self.silence_time:
-            if not self.buffer:
+
+            if not self.buffer_stt:
                 return None
 
-            audio = np.concatenate(self.buffer)
+            audio = np.concatenate(self.buffer_stt)
 
-            self.buffer = []
+            self.buffer_stt = []
             self.last_speech = None
-            return audio
 
+            return {
+                audio,
+                self.direction
+            }
         return None
