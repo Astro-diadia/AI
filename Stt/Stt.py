@@ -2,6 +2,7 @@
 from faster_whisper import WhisperModel
 # from speechbrain.pretrained import EncoderClassifier
 from Stt.AudioCapture import AudioCapture
+from Stt.Buffer import Buffer
 from time import time
 import queue
 # import numpy as np
@@ -24,24 +25,37 @@ class Stt:
         self.audio.capture_mic()
         self.audio.capture_system()
 
+        self.mic_buffer = Buffer()
+        self.system_buffer = Buffer()
+
         self.output_queue = queue.Queue()
+
+        self.prev_ratio = 1
 
         self.done = False
         self.worker = threading.Thread(
-            target=self.tts_worker,
+            target=self.stt_worker,
             daemon=True
         )
         self.worker.start()
 
-    def stt_loop(self):
+    def stt_worker(self):
         while not self.done:
-            mic_data = self.process_mic()
-            if mic_data:
-                self.output_queue.put(mic_data)
+            chunk_system = self.audio.get_system_audio()
+            chunk_mic = self.audio.get_mic_audio()
 
-            sys_data = self.process_system()
-            if sys_data:
-                self.output_queue.put(sys_data)
+                        
+
+            if time() - self.last_speech >= self.silence_time:
+                
+
+                mic_data = self.process_mic()
+                if mic_data:
+                    self.output_queue.put(mic_data)
+
+                sys_data = self.process_system()
+                if sys_data:
+                    self.output_queue.put(sys_data)
 
     # def get_embedding(self, audio_file):
     #     emb = self.spk_model.encode_batch(audio_file)
@@ -64,14 +78,15 @@ class Stt:
     #         self.speaker_db.append(new_id)
     #         return new_id
 
-    def classify_direction(block, threshold=0.01, balance=1.2):
-        left = np.abs(block[:, 0]).mean()
-        right = np.abs(block[:, 1]).mean()
+    def classify_direction(chunk, threshold=0.02, balance=1.2):
+        left = np.abs(chunk[:, 0]).mean()
+        right = np.abs(chunk[:, 1]).mean()
 
-        if left < threshold and right < threshold:
-            return "silence"
+        ratio = (left - right) / (left + right + 1e-6)
 
-        ratio = left / (right + 1e-6)
+        smoothed_ratio = 0.8 * self.prev_ratio + 0.2 * ratio
+
+        self.prev_ratio = smoothed_ratio
 
         if ratio > balance:
             return "left"
@@ -94,18 +109,12 @@ class Stt:
 
         return text
 
-    def process_system(self):
-        raw_block = self.audio.get_system_audio()
-
-        direction = classify_direction(raw_block)
-
-        if chunk is None:
-            return None
-
+    def process_system(self, chunk):
         text = self.wisper("system", chunk)
 
+        direction = classify_direction(chunk)
+
         if text:
-            
             return {
                 "text": text,
                 "direction": direction,
@@ -114,14 +123,7 @@ class Stt:
 
         return None
 
-    def process_mic(self):
-        raw_block = self.audio.get_mic_audio()
-
-        
-
-        if chunk is None:
-            return None
-
+    def process_mic(self, chunk):
         text = self.wisper("mic", chunk)
 
         if text:
