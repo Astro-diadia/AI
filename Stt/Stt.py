@@ -46,8 +46,8 @@ class Stt:
 
     def stt_worker(self):
         while not self.done:
-            chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
             chunk_mic = self.mic_buffer.process_chunk(self.audio.get_mic_audio())
+            chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
 
             if chunk_mic is not None:
                 process_mic(chunk_mic)
@@ -127,8 +127,9 @@ class Stt:
 
         direction_local = self.classify_direction(chunk)
 
-        self.direction = direction_local
-        self.buffer_direction.clear()
+        if direction_local is not None:
+            self.direction = direction_local
+            self.buffer_direction.clear()
 
         if text:
             return {
