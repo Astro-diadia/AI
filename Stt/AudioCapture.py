@@ -1,7 +1,7 @@
 import sounddevice as sd
 import queue
-import numpy as np
-import wave
+# import numpy as np
+# import wave
 
 # py "D:\AI\Stt\AudioCapture.py"
 
@@ -41,7 +41,7 @@ class AudioCapture:
         self.mic_stream.start()
 
 
-    def capture_system(self, device=2):
+    def capture_system(self, device=5):
         self.sys_stream = sd.InputStream(
             samplerate=self.samplerate,
             blocksize=self.blocksize,
@@ -68,29 +68,32 @@ class AudioCapture:
             self.sys_stream.stop()
 
 # print(sd.query_devices(device=5)['default_samplerate'])
+# print(sd.query_devices())
 
-audio = AudioCapture()
-audio.capture_system(5)
+# audio = AudioCapture()
+# audio.capture_system(5) #1-mic 5-system 
 
-wav_file = wave.open("D:\\sys_output.wav", "wb")
-wav_file.setnchannels(8)
-wav_file.setsampwidth(2)
-wav_file.setframerate(44100)
+# wav_file = wave.open("D:\\sys_output.wav", "wb")
+# wav_file.setnchannels(2)
+# wav_file.setsampwidth(2)
+# wav_file.setframerate(16000)
 
-try:
-    print("Recording... Press Ctrl+C to stop.")
-    while True:
+# try:
+#     print("Recording... Press Ctrl+C to stop.")
+#     while True:
 
-        chunk = audio.get_system_audio()
+#         chunk = audio.get_system_audio()
+        
+#         # chunk = chunk[:, :2]
 
-        chunk_int16 = (chunk * 32767).astype(np.int16)
+#         # print(chunk.min(), "\n", chunk.max(), "\n")
 
-        chunk_int16 = chunk_int16 * 0.5
+#         chunk_int16 = (chunk * 32767).astype(np.int16)
 
-        wav_file.writeframes(chunk_int16.tobytes())
+#         wav_file.writeframes(chunk_int16.tobytes())
 
-except KeyboardInterrupt:
-    pass
+# except KeyboardInterrupt:
+#     pass
 
-wav_file.close()
-audio.stop()
+# wav_file.close()
+# audio.stop()
