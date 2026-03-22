@@ -2,12 +2,13 @@ import numpy as np
 from time import time
 
 class Buffer:
-    def __init__(self, speech_threshold=0.048, samplerate=16000, silence_time=0.4):
+    def __init__(self, speech_threshold=0.048, is_mic=True):
         self.speech_threshold = speech_threshold
-        self.silence_time = silence_time
+        self.silence_time = 0.4
         self.buffer_stt = []  
         self.last_speech = None
 
+        self.is_mic = is_mic
         self.prev_ratio = 0.0
         self.buffer_direction = []
         self.direction = "center"
@@ -16,11 +17,12 @@ class Buffer:
         chunk = chunk.astype(np.float32)
 
         if np.abs(chunk).mean() > self.speech_threshold:
-            direction_local = self.classify_direction(chunk)
+            if not self.is_mic:
+                direction_local = self.classify_direction(chunk)
 
-            if direction_local is not None:
-                self.direction = direction_local
-                self.buffer_direction.clear()
+                if direction_local is not None:
+                    self.direction = direction_local
+                    self.buffer_direction.clear()
 
             self.buffer_stt.append(chunk.mean(axis=1))
 
@@ -31,7 +33,6 @@ class Buffer:
             return None
 
         if time() - self.last_speech >= self.silence_time:
-
             if not self.buffer_stt:
                 return None
 
@@ -41,7 +42,7 @@ class Buffer:
             self.last_speech = None
             self.buffer_direction.clear()
 
-            return {"audio": audio}
+            return {"audio": audio, "direction": self.direction}
         return None
 
     def classify_direction(self, chunk, threshold=0.1):

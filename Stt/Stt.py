@@ -26,8 +26,8 @@ class Stt:
         self.audio.capture_mic()
         self.audio.capture_system()
 
-        self.system_buffer = Buffer(0.05)
-        self.mic_buffer = Buffer(0.015)
+        self.system_buffer = Buffer(0.05, is_mic=False)
+        self.mic_buffer = Buffer(0.015, is_mic=True)
 
         self.output_queue = Queue()
         self.last_speech = time()
@@ -46,15 +46,21 @@ class Stt:
             chunk_system, direction = self.system_buffer.process_chunk(self.audio.get_system_audio())
 
             if chunk_mic is not None:
-                process_mic(chunk_mic)
+                process_mic(chunk_mic["audio"])
 
             if chunk_system is not None:
-                process_system(chunk_system)
+                process_system(chunk_system["audio"])
 
             if (self.accumulated_text.strip()
-                and (time() - self.last_speech) > self.silence_time):
-                final_text = self.accumulated_text.strip()
-                self.output_queue.put(final_text)
+                and (time() - self.last_speech) > self.silence_time
+                ):
+
+
+                self.output_queue.put({
+                    "system_text": system_text,
+                    "user_text": user_text,
+                    "direction": chunk_system["direction"]
+                    })
 
                 self.accumulated_text = ""
 
@@ -118,6 +124,9 @@ class Stt:
             }
 
         return None
+
+    def get(self):
+
 
     def stop(self):
         self.done = True
