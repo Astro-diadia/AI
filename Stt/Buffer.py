@@ -8,10 +8,20 @@ class Buffer:
         self.buffer_stt = []  
         self.last_speech = None
 
+        self.prev_ratio = 0.0
+        self.buffer_direction = []
+        self.direction = "center"
+
     def process_chunk(self, chunk):
         chunk = chunk.astype(np.float32)
 
         if np.abs(chunk).mean() > self.speech_threshold:
+            direction_local = self.classify_direction(chunk)
+
+            if direction_local is not None:
+                self.direction = direction_local
+                self.buffer_direction.clear()
+
             self.buffer_stt.append(chunk.mean(axis=1))
 
             self.last_speech = time()
@@ -29,6 +39,30 @@ class Buffer:
 
             self.buffer_stt = []
             self.last_speech = None
+            self.buffer_direction.clear()
 
-            return audio
+            return {"audio": audio}
+        return None
+
+    def classify_direction(self, chunk, threshold=0.1):
+        self.buffer_direction.append(chunk)
+
+        if len(self.buffer_direction) >= 8:
+            big_chunk = np.concatenate(self.buffer_direction)
+
+            left = np.abs(big_chunk[:, 0]).mean()
+            right = np.abs(big_chunk[:, 1]).mean()
+
+            ratio = (left - right) / (left + right + 1e-6)
+
+            smoothed_ratio = 0.8 * self.prev_ratio + 0.2 * ratio
+
+            self.prev_ratio = smoothed_ratio
+
+            if smoothed_ratio > threshold:
+                return "left"
+            elif smoothed_ratio < -threshold:
+                return "right"
+            else:
+                return "center"
         return None

@@ -4,7 +4,7 @@ from faster_whisper import WhisperModel
 from Stt.AudioCapture import AudioCapture
 from Stt.Buffer import Buffer
 
-from time import time
+from time import time, sleep
 from queue import Queue, put, get
 # import numpy as np
 
@@ -26,10 +26,6 @@ class Stt:
         self.audio.capture_mic()
         self.audio.capture_system()
 
-        self.prev_ratio = 0.0
-        self.buffer_direction = []
-        self.direction = "center"
-
         self.system_buffer = Buffer(0.05)
         self.mic_buffer = Buffer(0.015)
 
@@ -46,8 +42,8 @@ class Stt:
 
     def stt_worker(self):
         while not self.done:
-            chunk_mic = self.mic_buffer.process_chunk(self.audio.get_mic_audio())
-            chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
+            chunk_mic, direction = self.mic_buffer.process_chunk(self.audio.get_mic_audio())
+            chunk_system, direction = self.system_buffer.process_chunk(self.audio.get_system_audio())
 
             if chunk_mic is not None:
                 process_mic(chunk_mic)
@@ -62,7 +58,7 @@ class Stt:
 
                 self.accumulated_text = ""
 
-            time.sleep(0.01)
+            sleep(0.01)
 
     # def get_embedding(self, audio_file):
     #     emb = self.spk_model.encode_batch(audio_file)
@@ -99,37 +95,8 @@ class Stt:
 
         return text
 
-    def classify_direction(self, chunk, threshold=0.1):
-        self.buffer_direction.append(chunk)
-
-        if len(self.buffer_direction) >= 8:
-            big_chunk = np.concatenate(self.buffer_direction)
-
-            left = np.abs(big_chunk[:, 0]).mean()
-            right = np.abs(big_chunk[:, 1]).mean()
-
-            ratio = (left - right) / (left + right + 1e-6)
-
-            smoothed_ratio = 0.8 * self.prev_ratio + 0.2 * ratio
-
-            self.prev_ratio = smoothed_ratio
-
-            if smoothed_ratio > threshold:
-                return "left"
-            elif smoothed_ratio < 1 / threshold:
-                return "right"
-            else:
-                return "center"
-        return None
-
     def process_system(self, chunk):
         text = self.wisper(chunk)
-
-        direction_local = self.classify_direction(chunk)
-
-        if direction_local is not None:
-            self.direction = direction_local
-            self.buffer_direction.clear()
 
         if text:
             return {
