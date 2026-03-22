@@ -16,18 +16,15 @@ class AudioCapture:
         self.mic_stream = None
         self.sys_stream = None
 
-
     def _mic_callback(self, indata, frames, time, status):
         if status:
             print(status)
         self.mic_queue.put(indata.copy())
 
-
     def _sys_callback(self, indata, frames, time, status):
         if status:
             print(status)
         self.sys_queue.put(indata.copy())
-
 
     def capture_mic(self, device=1):
         self.mic_stream = sd.InputStream(
@@ -40,7 +37,6 @@ class AudioCapture:
 
         self.mic_stream.start()
 
-
     def capture_system(self, device=5):
         self.sys_stream = sd.InputStream(
             samplerate=self.samplerate,
@@ -52,14 +48,11 @@ class AudioCapture:
 
         self.sys_stream.start()
 
-
     def get_mic_audio(self):
         return self.mic_queue.get()
 
-
     def get_system_audio(self):
         return self.sys_queue.get()
-
 
     def stop(self):
         if self.mic_stream:

@@ -30,8 +30,5 @@ class Buffer:
             self.buffer_stt = []
             self.last_speech = None
 
-            return {
-                audio,
-                self.direction
-            }
+            return audio
         return None

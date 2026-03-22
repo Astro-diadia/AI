@@ -3,11 +3,12 @@ from faster_whisper import WhisperModel
 # from speechbrain.pretrained import EncoderClassifier
 from Stt.AudioCapture import AudioCapture
 from Stt.Buffer import Buffer
+
 from time import time
 from queue import Queue, put, get
 # import numpy as np
 
-# py "D:\Stt\Stt.py"
+# py "D:\AI\Stt\Stt.py"
 
 class Stt:
     def __init__(self):
@@ -33,6 +34,8 @@ class Stt:
         self.mic_buffer = Buffer(0.015)
 
         self.output_queue = Queue()
+        self.last_speech_time = time.time()
+        self.silence_threshold = 0.6
 
         self.done = False
         self.worker = threading.Thread(
@@ -43,15 +46,26 @@ class Stt:
 
     def stt_worker(self):
         while not self.done:
-            chunk_system = self.system_buffer(self.audio.get_system_audio())
-            chunk_mic = self.mic_buffer(self.audio.get_mic_audio())
-                mic_data = self.process_mic()
-                if mic_data:
-                    self.output_queue.put(mic_data)
+            chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
+            chunk_mic = self.mic_buffer.process_chunk(self.audio.get_mic_audio())
 
-                sys_data = self.process_system()
-                if sys_data:
-                    self.output_queue.put(sys_data)
+            if chunk_mic is not None:
+                process_mic(chunk_mic)
+
+            if chunk_system is not None:
+                process_system(chunk_system)
+
+            now = time.time()
+            if (
+                self.accumulated_text.strip()
+                and (now - self.last_speech_time) > self.silence_threshold
+            ):
+                final_text = self.accumulated_text.strip()
+                self.output_queue.put(final_text)
+
+                self.accumulated_text = ""
+
+            time.sleep(0.01)
 
     # def get_embedding(self, audio_file):
     #     emb = self.spk_model.encode_batch(audio_file)
@@ -74,7 +88,7 @@ class Stt:
     #         self.speaker_db.append(new_id)
     #         return new_id
 
-    def wisper(self, source, chunk):
+    def wisper(self, chunk):
         segments, _ = self.stt_model.transcribe(
             chunk,
             beam_size=1,
@@ -86,7 +100,7 @@ class Stt:
         if not text:
             return None
 
-        yield text
+        return text
 
     def classify_direction(self, chunk, threshold=0.1):
         self.buffer_direction.append(chunk)
@@ -112,13 +126,12 @@ class Stt:
         return None
 
     def process_system(self, chunk):
-        text = self.wisper("system", chunk)
+        text = self.wisper(chunk)
 
         direction_local = self.classify_direction(chunk)
 
-        if is not None:
-            self.direction = direction_local
-            self.buffer_direction.clear()
+        self.direction = direction_local
+        self.buffer_direction.clear()
 
         if text:
             return {
@@ -130,7 +143,7 @@ class Stt:
         return None
 
     def process_mic(self, chunk):
-        text = self.wisper("mic", chunk)
+        text = self.wisper(chunk)
 
         if text:
             return {
