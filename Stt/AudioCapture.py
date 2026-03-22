@@ -1,9 +1,9 @@
 import sounddevice as sd
 import queue
-# import numpy as np
-# import wave
+import numpy as np
+import wave
 
-# py "D:\Stt\AudioCapture.py"
+# py "D:\AI\Stt\AudioCapture.py"
 
 class AudioCapture:
     def __init__(self, samplerate=16000, blocksize=1024):
@@ -67,28 +67,30 @@ class AudioCapture:
         if self.sys_stream:
             self.sys_stream.stop()
 
-# print(sd.query_devices())
+# print(sd.query_devices(device=5)['default_samplerate'])
 
-# audio = AudioCapture()
-# audio.capture_system(2)
+audio = AudioCapture()
+audio.capture_system(5)
 
-# wav_file = wave.open("D:\\sys_output.wav", "wb")
-# wav_file.setnchannels(2)
-# wav_file.setsampwidth(2)
-# wav_file.setframerate(16000)
+wav_file = wave.open("D:\\sys_output.wav", "wb")
+wav_file.setnchannels(8)
+wav_file.setsampwidth(2)
+wav_file.setframerate(44100)
 
-# try:
-#     print("Recording... Press Ctrl+C to stop.")
-#     while True:
+try:
+    print("Recording... Press Ctrl+C to stop.")
+    while True:
 
-#         chunk = audio.get_system_audio()
+        chunk = audio.get_system_audio()
 
-#         chunk_int16 = (chunk * 32767).astype(np.int16)
+        chunk_int16 = (chunk * 32767).astype(np.int16)
 
-#         wav_file.writeframes(chunk_int16.tobytes())
+        chunk_int16 = chunk_int16 * 0.5
 
-# except KeyboardInterrupt:
-#     pass
+        wav_file.writeframes(chunk_int16.tobytes())
 
-# wav_file.close()
-# audio.stop()
+except KeyboardInterrupt:
+    pass
+
+wav_file.close()
+audio.stop()
