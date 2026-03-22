@@ -34,8 +34,8 @@ class Stt:
         self.mic_buffer = Buffer(0.015)
 
         self.output_queue = Queue()
-        self.last_speech_time = time.time()
-        self.silence_threshold = 0.6
+        self.last_speech = time()
+        self.silence_time = 0.6
 
         self.done = False
         self.worker = threading.Thread(
@@ -55,11 +55,8 @@ class Stt:
             if chunk_system is not None:
                 process_system(chunk_system)
 
-            now = time.time()
-            if (
-                self.accumulated_text.strip()
-                and (now - self.last_speech_time) > self.silence_threshold
-            ):
+            if (self.accumulated_text.strip()
+                and (time() - self.last_speech) > self.silence_time):
                 final_text = self.accumulated_text.strip()
                 self.output_queue.put(final_text)
 
