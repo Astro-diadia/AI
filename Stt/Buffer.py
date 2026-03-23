@@ -14,7 +14,7 @@ class Buffer:
         self.direction = "center"
 
     def process_chunk(self, chunk):
-        chunk = chunk.astype(np.float32)
+        chunk = chunk.astype(np.float32) / 32768.0
 
         if np.abs(chunk).mean() > self.speech_threshold:
             if not self.is_mic:
@@ -24,8 +24,7 @@ class Buffer:
                     self.direction = direction_local
                     self.buffer_direction.clear()
 
-            # self.buffer_stt.append(chunk.mean(axis=1))
-            self.buffer_stt.append(chunk)
+            self.buffer_stt.append(chunk.mean(axis=1))
 
             self.last_speech = time.time()
             return None
