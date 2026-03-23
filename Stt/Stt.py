@@ -48,7 +48,7 @@ class Stt:
             chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
 
             if chunk_mic is not None:
-                # user_text = self.whisper(chunk_mic["audio"])
+                user_text = self.whisper(chunk_mic["audio"])
                 if user_text:
                     self.output_queue_user.put({
                         "text": user_text,
@@ -57,7 +57,7 @@ class Stt:
                     user_text = ""
 
             if chunk_system is not None:
-                # system_text = self.whisper(chunk_system["audio"])
+                system_text = self.whisper(chunk_system["audio"])
                 if system_text:
                     self.output_queue_system.put({
                         "text": system_text,

@@ -31,12 +31,15 @@ class Agent:
     def main_cicle(self):
         print("start")
         while not self.done:
+            print("lol")
             sys_text = self.get_system()
             mic_text = self.get_mic()
             if result is not None:
                 print(sys_text["text"], "\n")
                 print(sys_text["direction"], "\n")
                 print(mic_text["text"], "\n")
+            else:
+                print("got nothing")
             time.sleep(0.01)
 
     def get_system(self):

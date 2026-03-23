@@ -32,7 +32,7 @@ class Buffer:
         if self.last_speech is None:
             return None
 
-        if time.time() - self.last_speech >= self.silence_time and len(self.buffer_stt) > 10:
+        if time.time() - self.last_speech >= self.silence_time and len(self.buffer_stt) >= 1:
             if not self.buffer_stt:
                 return None
 
