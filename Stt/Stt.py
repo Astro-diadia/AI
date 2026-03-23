@@ -47,15 +47,6 @@ class Stt:
             chunk_mic = self.mic_buffer.process_chunk(self.audio.get_mic_audio())
             chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
 
-            if chunk_mic is not None:
-                user_text = self.whisper(chunk_mic["audio"])
-                if user_text:
-                    self.output_queue_user.put({
-                        "text": user_text,
-                        "direction": "center"
-                        })
-                    user_text = ""
-
             if chunk_system is not None:
                 system_text = self.whisper(chunk_system["audio"])
                 if system_text:
@@ -65,12 +56,22 @@ class Stt:
                         })
                     system_text = ""
 
+            if chunk_mic is not None:
+                user_text = self.whisper(chunk_mic["audio"])
+                if user_text:
+                    self.output_queue_user.put({
+                        "text": user_text,
+                        "direction": "center"
+                        })
+                    user_text = ""
+
             time.sleep(0.01)
 
     def whisper(self, chunk):
+        print("whisper working")
         segments, _ = self.stt_model.transcribe(
             chunk,
-            beam_size=5,
+            beam_size=4,
             vad_filter=False,
             condition_on_previous_text=False
         )
