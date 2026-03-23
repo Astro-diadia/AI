@@ -11,6 +11,7 @@ import threading
 environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 # py "D:\AI\main.py"
+
 class Agent:
     def __init__(self, llm, short_mem, mid_mem, long_mem, stt):
         self.llm = llm
@@ -30,15 +31,19 @@ class Agent:
     def main_cicle(self):
         print("start")
         while not self.done:
-            result = self.get_stt_text()
+            sys_text = self.get_system()
+            mic_text = self.get_mic()
             if result is not None:
-                print(result["system_text"], "\n")
-                print(result["user_text"], "\n")
-                print(result["direction"], "\n")
+                print(sys_text["text"], "\n")
+                print(sys_text["direction"], "\n")
+                print(mic_text["text"], "\n")
             time.sleep(0.01)
 
-    def get_stt_text(self):
-        return self.stt.get()
+    def get_system(self):
+        return self.stt.get_system()
+
+    def get_mic(self):
+        return self.stt.get_mic()
 
     # def build_prompt(self, user_input, system_input):
     #     history = self.short_mem.get()

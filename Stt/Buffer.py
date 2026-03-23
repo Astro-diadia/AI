@@ -24,7 +24,8 @@ class Buffer:
                     self.direction = direction_local
                     self.buffer_direction.clear()
 
-            self.buffer_stt.append(chunk.mean(axis=1))
+            # self.buffer_stt.append(chunk.mean(axis=1))
+            self.buffer_stt.append(chunk)
 
             self.last_speech = time.time()
             return None
@@ -32,11 +33,10 @@ class Buffer:
         if self.last_speech is None:
             return None
 
-        if time.time() - self.last_speech >= self.silence_time:
+        if time.time() - self.last_speech >= self.silence_time and len(self.buffer_stt) > 10:
             if not self.buffer_stt:
                 return None
 
-            print(len(self.buffer_stt))
             audio = np.concatenate(self.buffer_stt)
 
             self.buffer_stt = []

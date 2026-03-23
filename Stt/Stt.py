@@ -26,10 +26,11 @@ class Stt:
         self.audio.capture_mic()
         self.audio.capture_system()
 
-        self.system_buffer = Buffer(0.05, is_mic=False)
+        self.system_buffer = Buffer(0.048, is_mic=False)
         self.mic_buffer = Buffer(0.015, is_mic=True)
 
-        self.output_queue = queue.Queue()
+        self.output_queue_system = queue.Queue()
+        self.output_queue_mic = queue.Queue()
 
         self.done = False
         self.worker = threading.Thread(
@@ -48,25 +49,28 @@ class Stt:
 
             if chunk_mic is not None:
                 user_text = self.whisper(chunk_mic["audio"])
+                if user_text:
+                    self.output_queue_user.put({
+                        "text": user_text,
+                        "direction": "center"
+                        })
+                    user_text = ""
 
             if chunk_system is not None:
                 system_text = self.whisper(chunk_system["audio"])
-
-            if (system_text != "" or user_text != ""):
-                self.output_queue.put({
-                    "system_text": system_text,
-                    "user_text": user_text,
-                    "direction": chunk_system["direction"]
-                    })
-                user_text = ""
-                system_text = ""
+                if system_text:
+                    self.output_queue_system.put({
+                        "text": system_text,
+                        "direction": chunk_system["direction"] or "unknown"
+                        })
+                    system_text = ""
 
             time.sleep(0.01)
 
     def whisper(self, chunk):
         segments, _ = self.stt_model.transcribe(
             chunk,
-            beam_size=4,
+            beam_size=5,
             vad_filter=False,
             condition_on_previous_text=False
         )
@@ -77,8 +81,11 @@ class Stt:
 
         return text
 
-    def get(self):
-        return self.output_queue.get()
+    def get_system(self):
+        return self.output_queue_system.get()
+
+    def get_mic(self):
+        return self.output_queue_user.get()
 
     def stop(self):
         self.done = True
