@@ -1,5 +1,5 @@
 import numpy as np
-from time import time
+import time
 
 class Buffer:
     def __init__(self, speech_threshold=0.048, is_mic=True):
@@ -26,16 +26,17 @@ class Buffer:
 
             self.buffer_stt.append(chunk.mean(axis=1))
 
-            self.last_speech = time()
+            self.last_speech = time.time()
             return None
 
         if self.last_speech is None:
             return None
 
-        if time() - self.last_speech >= self.silence_time:
+        if time.time() - self.last_speech >= self.silence_time:
             if not self.buffer_stt:
                 return None
 
+            print(len(self.buffer_stt))
             audio = np.concatenate(self.buffer_stt)
 
             self.buffer_stt = []

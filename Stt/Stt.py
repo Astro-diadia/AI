@@ -12,7 +12,7 @@ import threading
 
 class Stt:
     def __init__(self):
-        self.stt_model = WhisperModel("small", device="cuda", compute_type="int8")
+        self.stt_model = WhisperModel("medium", device="cuda", compute_type="int8")
         # self.spk_model = EncoderClassifier.from_hparams(
         #     source="speechbrain/spkrec-ecapa-voxceleb",
         #     run_opts={"device": "cuda"}
@@ -47,13 +47,13 @@ class Stt:
             chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
 
             if chunk_mic is not None:
-                user_text = wisper(chunk_mic["audio"]).strip()
+                user_text = self.whisper(chunk_mic["audio"])
 
             if chunk_system is not None:
-                system_text = wisper(chunk_system["audio"]).strip()
+                system_text = self.whisper(chunk_system["audio"])
 
             if (system_text != "" or user_text != ""):
-                self.output_queue.queue.put({
+                self.output_queue.put({
                     "system_text": system_text,
                     "user_text": user_text,
                     "direction": chunk_system["direction"]
@@ -62,6 +62,27 @@ class Stt:
                 system_text = ""
 
             time.sleep(0.01)
+
+    def whisper(self, chunk):
+        segments, _ = self.stt_model.transcribe(
+            chunk,
+            beam_size=4,
+            vad_filter=False,
+            condition_on_previous_text=False
+        )
+        text = " ".join(seg.text.strip() for seg in segments).strip()
+
+        if not text:
+            return None
+
+        return text
+
+    def get(self):
+        return self.output_queue.get()
+
+    def stop(self):
+        self.done = True
+        slef.thread.join()
 
     # def get_embedding(self, audio_file):
     #     emb = self.spk_model.encode_batch(audio_file)
@@ -83,24 +104,3 @@ class Stt:
     #         self.index.add(np.array([embedding]))
     #         self.speaker_db.append(new_id)
     #         return new_id
-
-    def wisper(self, chunk):
-        segments, _ = self.stt_model.transcribe(
-            chunk,
-            beam_size=1,
-            vad_filter=False,
-            condition_on_previous_text=False
-        )
-        text = " ".join(seg.text.strip() for seg in segments).strip()
-
-        if not text:
-            return None
-
-        return text
-
-    def get(self):
-        return self.output_queue.queue.get()
-
-    def stop(self):
-        self.done = True
-        slef.thread.join()

@@ -11,7 +11,6 @@ import threading
 environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 # py "D:\AI\main.py"
-
 class Agent:
     def __init__(self, llm, short_mem, mid_mem, long_mem, stt):
         self.llm = llm
@@ -24,15 +23,18 @@ class Agent:
         self.done = False
         self.worker = threading.Thread(
             target=self.main_cicle,
-            daemon=True
+            daemon=False
         )
         self.worker.start()
 
     def main_cicle(self):
+        print("start")
         while not self.done:
             result = self.get_stt_text()
-            if result:
-                print(result)
+            if result is not None:
+                print(result["system_text"], "\n")
+                print(result["user_text"], "\n")
+                print(result["direction"], "\n")
             time.sleep(0.01)
 
     def get_stt_text(self):
