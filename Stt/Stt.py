@@ -1,7 +1,6 @@
 # from faiss import IndexFlatIP
 from faster_whisper import WhisperModel
 # from speechbrain.pretrained import EncoderClassifier
-from Stt.AudioCapture import AudioCapture
 from Stt.Buffer import Buffer
 import time
 import queue
@@ -12,7 +11,7 @@ import threading
 
 class Stt:
     def __init__(self):
-        self.stt_model = WhisperModel("medium", device="cuda", compute_type="int8")
+        self.stt_model = WhisperModel("small", device="cuda", compute_type="int8")
         # self.spk_model = EncoderClassifier.from_hparams(
         #     source="speechbrain/spkrec-ecapa-voxceleb",
         #     run_opts={"device": "cuda"}
@@ -22,15 +21,8 @@ class Stt:
         # self.index = IndexFlatIP(self.dim)
         # self.speaker_db = []
 
-        self.audio = AudioCapture()
-        self.audio.capture_mic()
-        self.audio.capture_system()
-
-        self.system_buffer = Buffer(0.048, is_mic=False)
-        self.mic_buffer = Buffer(0.015, is_mic=True)
-
-        self.output_queue_system = queue.Queue()
-        self.output_queue_mic = queue.Queue()
+        self.output_queue_system = queue.Queue(maxsize=60)
+        self.output_queue_user = queue.Queue(maxsize=60)
 
         self.done = False
         self.worker = threading.Thread(
@@ -50,25 +42,27 @@ class Stt:
             if chunk_system is not None:
                 system_text = self.whisper(chunk_system["audio"])
                 if system_text:
-                    self.output_queue_system.put({
-                        "text": system_text,
-                        "direction": chunk_system["direction"] or "unknown"
-                        })
-                    system_text = ""
+                    if not output_queue_system.full()
+                        self.output_queue_system.put({
+                            "text": system_text,
+                            "direction": chunk_system["direction"] or "unknown"
+                            })
+                        system_text = ""
 
             if chunk_mic is not None:
                 user_text = self.whisper(chunk_mic["audio"])
                 if user_text:
-                    self.output_queue_user.put({
-                        "text": user_text,
-                        "direction": "center"
-                        })
-                    user_text = ""
+                    if not output_queue_user.full():
+                        self.output_queue_user.put({
+                            "text": user_text,
+                            "direction": "center"
+                            })
+                        user_text = ""
 
             time.sleep(0.01)
 
     def whisper(self, chunk):
-        print("whisper working")
+        print("whisper working:", chunk, "\n")
         segments, _ = self.stt_model.transcribe(
             chunk,
             beam_size=4,
@@ -83,14 +77,14 @@ class Stt:
         return text
 
     def get_system(self):
-        return self.output_queue_system.get()
+        return self.output_queue_system.get(timeout=0.1)
 
     def get_mic(self):
-        return self.output_queue_user.get()
+        return self.output_queue_user.get(timeout=0.1)
 
     def stop(self):
         self.done = True
-        slef.thread.join()
+        self.thread.join()
 
     # def get_embedding(self, audio_file):
     #     emb = self.spk_model.encode_batch(audio_file)

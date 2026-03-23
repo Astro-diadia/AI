@@ -33,7 +33,7 @@ class Agent:
         while not self.done:
             sys_text = self.get_system()
             mic_text = self.get_mic()
-            if result is not None:
+            if sys_text is not None:
                 print(sys_text["text"], "\n")
                 print(sys_text["direction"], "\n")
                 print(mic_text["text"], "\n")

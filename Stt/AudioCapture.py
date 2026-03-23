@@ -10,8 +10,8 @@ class AudioCapture:
         self.samplerate = samplerate
         self.blocksize = blocksize
 
-        self.mic_queue = queue.Queue()
-        self.sys_queue = queue.Queue()
+        self.output_queue_mic = queue.Queue(maxsize=60)
+        self.output_queue_system = queue.Queue(maxsize=60)
 
         self.mic_stream = None
         self.sys_stream = None
@@ -19,12 +19,14 @@ class AudioCapture:
     def _mic_callback(self, indata, frames, time, status):
         if status:
             print(status)
-        self.mic_queue.put(indata.copy())
+        if not self.output_queue_mic.full():
+            self.output_queue_mic.put(indata.copy())
 
     def _sys_callback(self, indata, frames, time, status):
         if status:
             print(status)
-        self.sys_queue.put(indata.copy())
+        if not self.output_queue_system.full():
+            self.output_queue_system.put(indata.copy())
 
     def capture_mic(self, device=1):
         self.mic_stream = sd.InputStream(
@@ -49,10 +51,10 @@ class AudioCapture:
         self.sys_stream.start()
 
     def get_mic_audio(self):
-        return self.mic_queue.get()
+        return self.output_queue_mic.get(timeout=0.1)
 
     def get_system_audio(self):
-        return self.sys_queue.get()
+        return self.output_queue_system.get(timeout=0.1)
 
     def stop(self):
         if self.mic_stream:
