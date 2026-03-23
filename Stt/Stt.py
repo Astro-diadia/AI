@@ -4,7 +4,8 @@ from faster_whisper import WhisperModel
 from Stt.AudioCapture import AudioCapture
 from Stt.Buffer import Buffer
 import time
-from queue import Queue, put, get
+import queue
+import threading
 # import numpy as np
 
 # py "D:\AI\Stt\Stt.py"
@@ -28,7 +29,7 @@ class Stt:
         self.system_buffer = Buffer(0.05, is_mic=False)
         self.mic_buffer = Buffer(0.015, is_mic=True)
 
-        self.output_queue = Queue()
+        self.output_queue = queue.Queue()
 
         self.done = False
         self.worker = threading.Thread(
@@ -52,7 +53,7 @@ class Stt:
                 system_text = wisper(chunk_system["audio"]).strip()
 
             if (system_text != "" or user_text != ""):
-                self.output_queue.put({
+                self.output_queue.queue.put({
                     "system_text": system_text,
                     "user_text": user_text,
                     "direction": chunk_system["direction"]
@@ -98,7 +99,7 @@ class Stt:
         return text
 
     def get(self):
-        return self.output_queue.get()
+        return self.output_queue.queue.get()
 
     def stop(self):
         self.done = True

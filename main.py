@@ -5,11 +5,12 @@
 from Stt.Stt import Stt
 # from Tts.Tts import Tts
 from os import environ
-from time import time, sleep
+import time
+import threading
 
 environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-# py "D:\main.py"
+# py "D:\AI\main.py"
 
 class Agent:
     def __init__(self, llm, short_mem, mid_mem, long_mem, stt):
@@ -27,51 +28,51 @@ class Agent:
         )
         self.worker.start()
 
-    def get_stt_text(self):
-        return self.stt.get()
-
-    def build_prompt(self, user_input, system_input):
-        history = self.short_mem.get()
-
-        prompt = "Conversation history:\n"
-
-        for message in history:
-            prompt += f"{message['role']}: {message['content']}\n"
-
-        if self.memory_query != "":
-            memory = self.mid_mem.retrieve_similar(self.memory_query)
-            prompt += "Relevant memory:\n"
-
-            if len(memory) > 0:
-                prompt += "\n".join(memory) + "\n"
-            else:
-                prompt += "\n".join(self.long_mem.retrieve_similar(self.memory_query)) + "\n"
-
-            self.memory_query = ""
-
-        prompt += f"\nCurrent user message:\n {user_input}\n"
-        prompt += f"\nCurrent system sounds:\n {system_input}\n"
-
-        return prompt
-
-    def run_turn(self, user_input, system_input):
-        self.short_mem.add(content=user_input, speaker_id="user1", role="user", mid_memory = self.mid_mem)   
-        self.short_mem.add(content=system_input, speaker_id="system", role="system", mid_memory = self.mid_mem)   
-
-        prompt = self.build_prompt(user_input, system_input)
-        output = self.llm.generate(prompt)
-        self.memory_query = output["what_to_searchy_in_memory"]
-
-        self.short_mem.add(content=output["thought"], speaker_id="assistant", role="assistant", mid_memory = self.mid_mem)
-
-        return output
-
     def main_cicle(self):
-        print("start")
         while not self.done:
             result = self.get_stt_text()
             if result:
                 print(result)
-            sleep(0.01)
+            time.sleep(0.01)
 
-agent = Agent(LLMCore(), ShortMemory(), MidMemory(), LongMemory(), Stt())
+    def get_stt_text(self):
+        return self.stt.get()
+
+    # def build_prompt(self, user_input, system_input):
+    #     history = self.short_mem.get()
+
+    #     prompt = "Conversation history:\n"
+
+    #     for message in history:
+    #         prompt += f"{message['role']}: {message['content']}\n"
+
+    #     if self.memory_query != "":
+    #         memory = self.mid_mem.retrieve_similar(self.memory_query)
+    #         prompt += "Relevant memory:\n"
+
+    #         if len(memory) > 0:
+    #             prompt += "\n".join(memory) + "\n"
+    #         else:
+    #             prompt += "\n".join(self.long_mem.retrieve_similar(self.memory_query)) + "\n"
+
+    #         self.memory_query = ""
+
+    #     prompt += f"\nCurrent user message:\n {user_input}\n"
+    #     prompt += f"\nCurrent system sounds:\n {system_input}\n"
+
+    #     return prompt
+
+    # def run_turn(self, user_input, system_input):
+    #     self.short_mem.add(content=user_input, speaker_id="user1", role="user", mid_memory = self.mid_mem)   
+    #     self.short_mem.add(content=system_input, speaker_id="system", role="system", mid_memory = self.mid_mem)   
+
+    #     prompt = self.build_prompt(user_input, system_input)
+    #     output = self.llm.generate(prompt)
+    #     self.memory_query = output["what_to_searchy_in_memory"]
+
+    #     self.short_mem.add(content=output["thought"], speaker_id="assistant", role="assistant", mid_memory = self.mid_mem)
+
+    #     return output
+
+# agent = Agent(LLMCore(), ShortMemory(), MidMemory(), LongMemory(), Stt())
+agent = Agent("", "", "", "", Stt())
