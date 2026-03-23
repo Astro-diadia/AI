@@ -40,6 +40,7 @@ class Stt:
     def stt_worker(self):
         user_text = ""
         system_text = ""
+
         while not self.done:
             chunk_mic = self.mic_buffer.process_chunk(self.audio.get_mic_audio())
             chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
@@ -50,7 +51,7 @@ class Stt:
             if chunk_system is not None:
                 system_text = wisper(chunk_system["audio"]).strip()
 
-            if system_text || user_text:
+            if (system_text != "" or user_text != ""):
                 self.output_queue.put({
                     "system_text": system_text,
                     "user_text": user_text,

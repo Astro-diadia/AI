@@ -20,11 +20,15 @@ class Agent:
         self.stt = stt
         self.memory_query = ""
 
-    def process_mic(self):
-        return self.stt.process_mic()
+        self.done = False
+        self.worker = threading.Thread(
+            target=self.main_cicle,
+            daemon=True
+        )
+        self.worker.start()
 
-    def process_system(self):
-        return self.stt.process_system()
+    def get_stt_text(self):
+        return self.stt.get()
 
     def build_prompt(self, user_input, system_input):
         history = self.short_mem.get()
@@ -62,19 +66,12 @@ class Agent:
 
         return output
 
+    def main_cicle(self):
+        print("start")
+        while not self.done:
+            result = self.get_stt_text()
+            if result:
+                print(result)
+            sleep(0.01)
+
 agent = Agent(LLMCore(), ShortMemory(), MidMemory(), LongMemory(), Stt())
-print("start")
-
-timer = None
-accumulated_input = [] 
-timeConst = 3
-
-while True:
-    user_input = agent.process_mic()
-    system_input = agent.process_system()
-
-    if user_input is not None || system_input is not None:
-        print("You:", user_input, "\n")
-        print("AI:", agent.run_turn(user_input, system_input)["speak"], "\n")
-
-    sleep(0.1)
