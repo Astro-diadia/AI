@@ -4,7 +4,7 @@ from time import time
 class Buffer:
     def __init__(self, speech_threshold=0.048, is_mic=True):
         self.speech_threshold = speech_threshold
-        self.silence_time = 0.4
+        self.silence_time = 0.7
         self.buffer_stt = []  
         self.last_speech = None
 

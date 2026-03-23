@@ -3,8 +3,7 @@ from faster_whisper import WhisperModel
 # from speechbrain.pretrained import EncoderClassifier
 from Stt.AudioCapture import AudioCapture
 from Stt.Buffer import Buffer
-
-from time import time, sleep
+import time
 from queue import Queue, put, get
 # import numpy as np
 
@@ -30,8 +29,6 @@ class Stt:
         self.mic_buffer = Buffer(0.015, is_mic=True)
 
         self.output_queue = Queue()
-        self.last_speech = time()
-        self.silence_time = 0.6
 
         self.done = False
         self.worker = threading.Thread(
@@ -41,30 +38,28 @@ class Stt:
         self.worker.start()
 
     def stt_worker(self):
+        user_text = ""
+        system_text = ""
         while not self.done:
-            chunk_mic, direction = self.mic_buffer.process_chunk(self.audio.get_mic_audio())
-            chunk_system, direction = self.system_buffer.process_chunk(self.audio.get_system_audio())
+            chunk_mic = self.mic_buffer.process_chunk(self.audio.get_mic_audio())
+            chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
 
             if chunk_mic is not None:
-                process_mic(chunk_mic["audio"])
+                user_text = wisper(chunk_mic["audio"]).strip()
 
             if chunk_system is not None:
-                process_system(chunk_system["audio"])
+                system_text = wisper(chunk_system["audio"]).strip()
 
-            if (self.accumulated_text.strip()
-                and (time() - self.last_speech) > self.silence_time
-                ):
-
-
+            if system_text || user_text:
                 self.output_queue.put({
                     "system_text": system_text,
                     "user_text": user_text,
                     "direction": chunk_system["direction"]
                     })
+                user_text = ""
+                system_text = ""
 
-                self.accumulated_text = ""
-
-            sleep(0.01)
+            time.sleep(0.01)
 
     # def get_embedding(self, audio_file):
     #     emb = self.spk_model.encode_batch(audio_file)
@@ -101,32 +96,8 @@ class Stt:
 
         return text
 
-    def process_system(self, chunk):
-        text = self.wisper(chunk)
-
-        if text:
-            return {
-                "text": text,
-                "direction": direction,
-                "source": "system"
-            }
-
-        return None
-
-    def process_mic(self, chunk):
-        text = self.wisper(chunk)
-
-        if text:
-            return {
-                "text": text,
-                "direction": "center",
-                "source": "mic"
-            }
-
-        return None
-
     def get(self):
-
+        return self.output_queue.get()
 
     def stop(self):
         self.done = True
