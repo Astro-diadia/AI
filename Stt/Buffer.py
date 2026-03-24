@@ -18,9 +18,10 @@ class Buffer:
         self.AudioCapture.capture_system()
 
         self.min_audio = 16000 * 1.6
+        self.max_audio = 16000 * 2.2 # 3 for quality?
 
-        self.output_queue_system = queue.Queue(maxsize=60)
-        self.output_queue_mic = queue.Queue(maxsize=60)
+        self.output_queue_system = queue.Queue(maxsize=15)
+        self.output_queue_mic = queue.Queue(maxsize=15)
 
         self.prev_ratio = 0.0
         self.buffer_direction = []
@@ -46,8 +47,11 @@ class Buffer:
                 self.process_system(chunk=chunk)
             except queue.Empty:
                 pass
+                time.sleep(0.01)
 
     def process_system(self, chunk):
+        now = time.time()
+
         if np.sqrt((chunk**2).mean()) > self.speech_threshold:
             direction_local = self.classify_direction(chunk)
 
@@ -57,20 +61,26 @@ class Buffer:
 
             self.buffer_stt_sys.append(chunk.mean(axis=1))
 
-            self.last_speech_sys = time.time()
+            self.last_speech_sys = now
             return None
 
         if self.last_speech_sys is None:
             return None
 
-        if time.time() - self.last_speech_sys >= self.silence_time:
+        if now - self.last_speech_sys >= self.silence_time:
             if not self.buffer_stt_sys:
                 return None
 
             audio = np.concatenate(self.buffer_stt_sys)
 
             if len(audio) < self.min_audio:
-                return None
+                if now - self.last_speech_sys > self.silence_time:
+                    if not self.output_queue_system.full():
+                        self.output_queue_system.put({
+                            "audio": audio,
+                            "direction": self.direction
+                        })
+                    return None
 
             self.buffer_stt_sys = []
             self.last_speech_sys = None
@@ -85,35 +95,58 @@ class Buffer:
         return None
 
     def process_mic(self, chunk):
+        now = time.time()
+
         if np.sqrt((chunk**2).mean()) > self.speech_threshold:
 
             self.buffer_stt_mic.append(chunk)
 
-            self.last_speech_mic = time.time()
+            self.last_speech_mic = now
             return None
 
         if self.last_speech_mic is None:
             return None
 
-        if time.time() - self.last_speech_mic >= self.silence_time:
+        if now - self.last_speech_mic >= self.silence_time:
             if not self.buffer_stt_mic:
                 return None
 
             audio = np.concatenate(self.buffer_stt_mic)
 
-            if len(audio) < self.min_audio:
-                return None            
-
-            self.buffer_stt_mic = []
-            self.last_speech_mic = None
+            if len(audio) <= self.min_audio:
+                if now - self.last_speech_mic > self.silence_time * 2:
+                    if not self.output_queue_mic.full():
+                        self.output_queue_mic.put({
+                            "audio": audio,
+                            "direction": "center"
+                        })
+                        self.buffer_stt_mic = []
+                        self.last_speech_mic = None
+                    return None
 
             if not self.output_queue_mic.full():
                 self.output_queue_mic.put({
                     "audio": audio,
                     "direction": "center"
                 })
+                self.buffer_stt_mic = []
+                self.last_speech_mic = None
+            return None
+        else:
+            if not self.buffer_stt_mic:
+                return None
 
-        return None
+            audio = np.concatenate(self.buffer_stt_mic)
+
+            if len(audio) >= self.max_audio:
+                if not self.output_queue_mic.full():
+                    self.output_queue_mic.put({
+                        "audio": audio,
+                        "direction": "center"
+                    })
+                    self.buffer_stt_mic = []
+                    self.last_speech_mic = None
+            return None
 
     def classify_direction(self, chunk, threshold=0.1):
         self.buffer_direction.append(chunk)
