@@ -10,8 +10,8 @@ class AudioCapture:
         self.samplerate = samplerate
         self.blocksize = blocksize
 
-        self.output_queue_mic = queue.Queue(maxsize=60)
-        self.output_queue_system = queue.Queue(maxsize=60)
+        self.output_queue_mic = queue.Queue(maxsize=40)
+        self.output_queue_system = queue.Queue(maxsize=40)
 
         self.mic_stream = None
         self.sys_stream = None

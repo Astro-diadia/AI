@@ -21,8 +21,11 @@ class Stt:
         # self.index = IndexFlatIP(self.dim)
         # self.speaker_db = []
 
-        self.output_queue_system = queue.Queue(maxsize=60)
-        self.output_queue_user = queue.Queue(maxsize=60)
+        self.mic_buffer = Buffer(0.048)
+        self.system_buffer = Buffer(0.015)
+
+        self.output_queue_system = queue.Queue(maxsize=15)
+        self.output_queue_mic = queue.Queue(maxsize=15)
 
         self.done = False
         self.worker = threading.Thread(
@@ -32,37 +35,43 @@ class Stt:
         self.worker.start()
 
     def stt_worker(self):
-        user_text = ""
-        system_text = ""
+        mic_text = None
+        system_text = None
 
         while not self.done:
-            chunk_mic = self.mic_buffer.process_chunk(self.audio.get_mic_audio())
-            chunk_system = self.system_buffer.process_chunk(self.audio.get_system_audio())
+            try:
+                mic_audio = self.mic_buffer.get_mic_audio()
 
-            if chunk_system is not None:
-                system_text = self.whisper(chunk_system["audio"])
-                if system_text:
-                    if not output_queue_system.full()
+                mic_text = whisper(mic_audio)
+
+                if mic_text is not None:
+                    if not output_queue_mic.full():
+                        self.output_queue_mic.put({
+                            "text": mic_text,
+                            "direction": "center"
+                            })
+                        mic_text = None
+            except queue.Empty:
+                pass
+
+            try:
+                system_audio = self.system_buffer.get_system_audio()
+
+                system_text = whisper(system_audio)
+
+                if system_text is not None:
+                    if not output_queue_system.full():
                         self.output_queue_system.put({
                             "text": system_text,
                             "direction": chunk_system["direction"] or "unknown"
                             })
-                        system_text = ""
-
-            if chunk_mic is not None:
-                user_text = self.whisper(chunk_mic["audio"])
-                if user_text:
-                    if not output_queue_user.full():
-                        self.output_queue_user.put({
-                            "text": user_text,
-                            "direction": "center"
-                            })
-                        user_text = ""
+                        system_text = None                 
+            except queue.Empty:
+                pass
 
             time.sleep(0.01)
 
     def whisper(self, chunk):
-        print("whisper working:", chunk, "\n")
         segments, _ = self.stt_model.transcribe(
             chunk,
             beam_size=4,
@@ -80,7 +89,7 @@ class Stt:
         return self.output_queue_system.get(timeout=0.1)
 
     def get_mic(self):
-        return self.output_queue_user.get(timeout=0.1)
+        return self.output_queue_mic.get(timeout=0.1)
 
     def stop(self):
         self.done = True

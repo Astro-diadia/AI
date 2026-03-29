@@ -47,7 +47,8 @@ class Buffer:
                 self.process_system(chunk=chunk)
             except queue.Empty:
                 pass
-                time.sleep(0.01)
+                
+            time.sleep(0.01)
 
     def process_system(self, chunk):
         now = time.time()
