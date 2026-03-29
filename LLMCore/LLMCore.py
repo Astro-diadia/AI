@@ -5,7 +5,7 @@ import queue
 from time import sleep, time
 from os import environ
 
-environ["CUDA_VISIBLE_DEVICES"] = "0"
+# environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # py "D:\AI\LLMCore\LLMCore.py"
 
