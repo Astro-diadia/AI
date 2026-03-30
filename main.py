@@ -6,6 +6,7 @@ from Stt.Stt import Stt
 # from Tts.Tts import Tts
 from os import environ
 import time
+import queue
 import threading
 
 environ["CUDA_VISIBLE_DEVICES"] = "1"
@@ -31,19 +32,24 @@ class Agent:
     def main_cicle(self):
         print("start")
         while not self.done:
-            sys_text = self.get_system()
-            mic_text = self.get_mic()
-            if sys_text is not None:
+            try:
+                sys_text = self.get_system_text()
                 print(sys_text["text"], "\n")
                 print(sys_text["direction"], "\n")
-                print(mic_text["text"], "\n")
-            time.sleep(0.02)
+            except queue.Empty:
+                pass
 
-    def get_system(self):
-        return self.stt.get_system()
+            try:
+                mic_text = self.get_mic_text()
+                print(mic_text, "\n")
+            except queue.Empty:
+                pass
 
-    def get_mic(self):
-        return self.stt.get_mic()
+    def get_system_text(self):
+        return self.stt.get_system_text()
+
+    def get_mic_text(self):
+        return self.stt.get_mic_text()
 
     # def build_prompt(self, user_input, system_input):
     #     history = self.short_mem.get()

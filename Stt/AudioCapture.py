@@ -1,7 +1,7 @@
 import sounddevice as sd
 import queue
-# import numpy as np
-# import wave
+import numpy as np
+import wave
 
 # py "D:\AI\Stt\AudioCapture.py"
 
@@ -39,7 +39,7 @@ class AudioCapture:
 
         self.mic_stream.start()
 
-    def capture_system(self, device=5):
+    def capture_system(self, device=7):
         self.sys_stream = sd.InputStream(
             samplerate=self.samplerate,
             blocksize=self.blocksize,
@@ -62,11 +62,11 @@ class AudioCapture:
         if self.sys_stream:
             self.sys_stream.stop()
 
-# print(sd.query_devices(device=5)['default_samplerate'])
+# print(sd.query_devices(device=7)['default_samplerate'])
 # print(sd.query_devices())
 
 # audio = AudioCapture()
-# audio.capture_system(5) #1-mic 5-system 
+# audio.capture_system(7) #1-mic 7-system 
 
 # wav_file = wave.open("D:\\sys_output.wav", "wb")
 # wav_file.setnchannels(2)
@@ -78,10 +78,6 @@ class AudioCapture:
 #     while True:
 
 #         chunk = audio.get_system_audio()
-        
-#         # chunk = chunk[:, :2]
-
-#         # print(chunk.min(), "\n", chunk.max(), "\n")
 
 #         chunk_int16 = (chunk * 32767).astype(np.int16)
 
