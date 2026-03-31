@@ -54,13 +54,13 @@ class Stt:
             try:
                 system_audio = self.system_buffer.get_system_audio()
 
-                system_text = self.whisper(system_audio)
+                system_text = self.whisper(system_audio["audio"])
 
                 if system_text is not None:
                     if not output_queue_system.full():
                         self.output_queue_system.put({
                             "text": system_text,
-                            "direction": chunk_system["direction"] or "unknown"
+                            "direction": system_audio["direction"] or "unknown"
                             })
                         system_text = None                 
             except queue.Empty:
@@ -68,10 +68,11 @@ class Stt:
 
             time.sleep(0.01)
 
-    def whisper(self, chunk):
-        print("whisper working")
+    def whisper(self, audio):
+        print("whisper working", audio.dtype)
+
         segments, _ = self.stt_model.transcribe(
-            chunk,
+            audio,
             beam_size=4,
             vad_filter=False,
             condition_on_previous_text=False

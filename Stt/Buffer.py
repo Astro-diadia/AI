@@ -50,6 +50,7 @@ class Buffer:
 
     def process_system(self, chunk):
         now = time.time()
+
         if np.sqrt((chunk**2).mean()) > self.speech_threshold:
             print("working with chunk")
             direction_local = self.classify_direction(chunk)
@@ -72,14 +73,16 @@ class Buffer:
 
             audio = np.concatenate(self.buffer_stt_sys)
 
-            if len(audio) < self.min_audio:
-                if now - self.last_speech_sys > self.silence_time:
+            if len(audio) <= self.min_audio:
+                if now - self.last_speech_sys > self.silence_time * 2:
                     if not self.output_queue_system.full():
                         print("put in queue")
                         self.output_queue_system.put({
                             "audio": audio,
                             "direction": self.direction
                         })
+                        self.buffer_stt_mic = []
+                        self.last_speech_sys = None
                     return None
 
             self.buffer_stt_sys = []
@@ -87,20 +90,33 @@ class Buffer:
             self.buffer_direction.clear()
 
             if not self.output_queue_system.full():
-                print("put in queue")
                 self.output_queue_system.put({
                     "audio": audio,
                     "direction": self.direction
                 })
+        else:
+            if not self.buffer_stt_mic:
+                return None
 
-        return None
+            audio = np.concatenate(self.buffer_stt_mic)
+
+            if len(audio) >= self.max_audio:
+                if not self.output_queue_system.full():
+                    self.output_queue_system.put({
+                        "audio": audio,
+                        "direction": self.direction
+                    })
+                    self.buffer_stt_mic = []
+                    self.last_speech_sys = None
+            return None
+
 
     def process_mic(self, chunk):
         now = time.time()
 
         if np.sqrt((chunk**2).mean()) > self.speech_threshold:
 
-            self.buffer_stt_mic.append(chunk)
+            self.buffer_stt_mic.append(chunk.mean(axis=1))
 
             self.last_speech_mic = now
             return None
@@ -117,19 +133,13 @@ class Buffer:
             if len(audio) <= self.min_audio:
                 if now - self.last_speech_mic > self.silence_time * 2:
                     if not self.output_queue_mic.full():
-                        self.output_queue_mic.put({
-                            "audio": audio,
-                            "direction": "center"
-                        })
+                        self.output_queue_mic.put(audio)
                         self.buffer_stt_mic = []
                         self.last_speech_mic = None
                     return None
 
             if not self.output_queue_mic.full():
-                self.output_queue_mic.put({
-                    "audio": audio,
-                    "direction": "center"
-                })
+                self.output_queue_mic.put(audio)
                 self.buffer_stt_mic = []
                 self.last_speech_mic = None
             return None
@@ -141,10 +151,7 @@ class Buffer:
 
             if len(audio) >= self.max_audio:
                 if not self.output_queue_mic.full():
-                    self.output_queue_mic.put({
-                        "audio": audio,
-                        "direction": "center"
-                    })
+                    self.output_queue_mic.put(audio)
                     self.buffer_stt_mic = []
                     self.last_speech_mic = None
             return None
