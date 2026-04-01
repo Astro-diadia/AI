@@ -61,7 +61,6 @@ class Buffer:
             self.buffer_stt_sys.append(chunk.mean(axis=1))
 
             self.last_speech_sys = now
-            return None
 
         if self.last_speech_sys is None:
             return None
@@ -80,11 +79,11 @@ class Buffer:
                             "audio": audio,
                             "direction": self.direction
                         })
-                        self.buffer_stt_mic = []
+                        self.buffer_stt_sys.clear()
                         self.last_speech_sys = None
                     return None
 
-            self.buffer_stt_sys = []
+            self.buffer_stt_sys.clear()
             self.last_speech_sys = None
             self.buffer_direction.clear()
 
@@ -94,11 +93,9 @@ class Buffer:
                     "audio": audio,
                     "direction": self.direction
                 })
-        else:
-            if not self.buffer_stt_mic:
                 return None
-
-            audio = np.concatenate(self.buffer_stt_mic)
+        else:
+            audio = np.concatenate(self.buffer_stt_sys)
 
             if len(audio) >= self.max_audio:
                 if not self.output_queue_system.full():
@@ -107,7 +104,7 @@ class Buffer:
                         "audio": audio,
                         "direction": self.direction
                     })
-                    self.buffer_stt_mic = []
+                    self.buffer_stt_sys.clear()
                     self.last_speech_sys = None
             return None
 
@@ -120,7 +117,6 @@ class Buffer:
             self.buffer_stt_mic.append(chunk.mean(axis=1))
 
             self.last_speech_mic = now
-            return None
 
         if self.last_speech_mic is None:
             return None
@@ -135,15 +131,15 @@ class Buffer:
                 if now - self.last_speech_mic > self.silence_time * 2:
                     if not self.output_queue_mic.full():
                         self.output_queue_mic.put(audio)
-                        self.buffer_stt_mic = []
+                        self.buffer_stt_mic.clear()
                         self.last_speech_mic = None
                     return None
 
             if not self.output_queue_mic.full():
                 self.output_queue_mic.put(audio)
-                self.buffer_stt_mic = []
+                self.buffer_stt_mic.clear()
                 self.last_speech_mic = None
-            return None
+                return None
         else:
             if not self.buffer_stt_mic:
                 return None
@@ -153,7 +149,7 @@ class Buffer:
             if len(audio) >= self.max_audio:
                 if not self.output_queue_mic.full():
                     self.output_queue_mic.put(audio)
-                    self.buffer_stt_mic = []
+                    self.buffer_stt_mic.clear()
                     self.last_speech_mic = None
             return None
 

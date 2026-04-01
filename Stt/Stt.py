@@ -22,7 +22,7 @@ class Stt:
         # self.speaker_db = []
 
         self.mic_buffer = Buffer(0.048)
-        self.system_buffer = Buffer(0.014)
+        self.system_buffer = Buffer(0.02)
 
         self.output_queue_system = queue.Queue(maxsize=15)
         self.output_queue_mic = queue.Queue(maxsize=15)
