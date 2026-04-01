@@ -88,4 +88,8 @@ class Agent:
     #     return output
 
 # agent = Agent(LLMCore(), ShortMemory(), MidMemory(), LongMemory(), Stt())
-agent = Agent("", "", "", "", Stt())
+
+try:
+    agent = Agent("", "", "", "", Stt())
+except:
+    print("lol you fucked up", "\n", """py "D:\AI\main.py""")

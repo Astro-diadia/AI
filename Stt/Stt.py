@@ -22,7 +22,7 @@ class Stt:
         # self.speaker_db = []
 
         self.mic_buffer = Buffer(0.048)
-        self.system_buffer = Buffer(0.015)
+        self.system_buffer = Buffer(0.014)
 
         self.output_queue_system = queue.Queue(maxsize=15)
         self.output_queue_mic = queue.Queue(maxsize=15)
@@ -45,7 +45,7 @@ class Stt:
                 mic_text = self.whisper(mic_audio)
 
                 if mic_text is not None:
-                    if not output_queue_mic.full():
+                    if not self.output_queue_mic.full():
                         self.output_queue_mic.put(mic_text)
                         mic_text = None
             except queue.Empty:
@@ -57,7 +57,7 @@ class Stt:
                 system_text = self.whisper(system_audio["audio"])
 
                 if system_text is not None:
-                    if not output_queue_system.full():
+                    if not self.output_queue_system.full():
                         self.output_queue_system.put({
                             "text": system_text,
                             "direction": system_audio["direction"] or "unknown"

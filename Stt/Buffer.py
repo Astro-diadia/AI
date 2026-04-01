@@ -52,7 +52,6 @@ class Buffer:
         now = time.time()
 
         if np.sqrt((chunk**2).mean()) > self.speech_threshold:
-            print("working with chunk")
             direction_local = self.classify_direction(chunk)
 
             if direction_local is not None:
@@ -90,6 +89,7 @@ class Buffer:
             self.buffer_direction.clear()
 
             if not self.output_queue_system.full():
+                print("put in queue")
                 self.output_queue_system.put({
                     "audio": audio,
                     "direction": self.direction
@@ -102,6 +102,7 @@ class Buffer:
 
             if len(audio) >= self.max_audio:
                 if not self.output_queue_system.full():
+                    print("put in queue")
                     self.output_queue_system.put({
                         "audio": audio,
                         "direction": self.direction
