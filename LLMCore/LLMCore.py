@@ -1,8 +1,8 @@
-from llama_cpp import Llama
+from llama_cpp import Llama, LlamaGrammar
 from json import loads
 import threading
 import queue
-from time import sleep, time
+import time
 from os import environ
 
 environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -17,14 +17,39 @@ class LLMCore:
             chat_format= "chatml",
             n_gpu_layers=-1,
             n_ctx=2048,
-            n_threads=2, #TODO test 2 vs 4
-            n_batch=512,
+            n_threads=2,
+            n_batch=1024, #512 original 80tps
             use_mmap=True,
             use_mlock=True,
-            verbose=False
+            verbose=False,
+            cache=True,
+            # cache_prompt=True
         )
 
+        root ::= "{" ws "\"tts\"" ws ":" ws string ws "," ws "\"tool_calls\"" ws ":" ws tool_array ws "}"
+
+        tool_array ::= "[" ws (tool_call (ws "," ws tool_call)*)? ws "]"
+
+        tool_call ::= "{" ws "\"name\"" ws ":" ws string ws "," ws "\"arguments\"" ws ":" ws simple_object ws "}"
+
+        simple_object ::= "{" ws (pair (ws "," ws pair)*)? ws "}"
+        pair ::= string ws ":" ws simple_value
+
+        simple_value ::= string | number | "true" | "false" | "null"
+
+        string ::= "\"" chars "\""
+        chars ::= "" | char chars
+        char ::= [^"\\] | "\\" ["\\/bfnrt]
+
+        number ::= "-"? [0-9]+ ("." [0-9]+)?
+
+        ws ::= [ \t\n\r]*
+
+        self.grammar = LlamaGrammar.from_string(gbnf_string)
+
         self.buffer = ""
+
+        self.last_emit = 0.4
         
         self.queue = queue.Queue()
         self.output_queue = queue.Queue()
@@ -57,6 +82,7 @@ class LLMCore:
                         }
                     ],
                     max_tokens=100,
+                    # grammar=self.grammar,
                     stream=True
                 )
 
@@ -93,12 +119,12 @@ class LLMCore:
             print("encountered ,;:")
             return True
 
-        if len(buffer) > 20 and time() - last_emit > 0.4:
+        if len(buffer) > 20 and time() - last_emit > self.last_emit:
             print("last_emit")
             return True
 
         if len(buffer) > 80:
-            print("buffer 60")
+            print("buffer 80")
             return True
 
         return False           

@@ -3,7 +3,7 @@
 # from MemControl.ShortMemory import ShortMemory
 # from MemControl.MidMemory import MidMemory
 from Stt.Stt import Stt
-# from Tts.Tts import Tts
+# from Tts.Tts2 import Tts
 from os import environ
 import time
 import queue
@@ -87,9 +87,8 @@ class Agent:
 
     #     return output
 
-# agent = Agent(LLMCore(), ShortMemory(), MidMemory(), LongMemory(), Stt())
 
 try:
-    agent = Agent("", "", "", "", Stt())
+    agent = Agent(LLMCore(), ShortMemory(), MidMemory(), LongMemory(), Stt())
 except:
-    print("lol you fucked up", "\n", """py "D:\AI\main.py""")
+    printf("lol you fucked up", "\n", 'py "D:\AI\main.py"')

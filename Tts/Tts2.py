@@ -5,7 +5,7 @@ import sounddevice as sd
 
 # py "D:\AI\Tts\Tts2.py"
 
-class TTS:
+class Tts:
     def __init__(self, language="ru", model_id="v5_ru", speaker="baya", sample_rate=24000, device="cpu"):
         self.language = language
         self.model_id = model_id
