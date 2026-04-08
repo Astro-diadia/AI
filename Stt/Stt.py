@@ -40,28 +40,31 @@ class Stt:
 
         while not self.done:
             try:
-                mic_audio = self.mic_buffer.get_mic_audio()
+                mic_obj = self.mic_buffer.get_mic_audio()
 
-                mic_text = self.whisper(mic_audio)
+                mic_text = self.whisper(mic_obj["audio"])
 
                 if mic_text is not None:
+                    del mic_obj["audio"]
+                    mic_obj["text"] = mic_text
+
                     if not self.output_queue_mic.full():
-                        self.output_queue_mic.put(mic_text)
+                        self.output_queue_mic.put(mic_obj)
                         mic_text = None
             except queue.Empty:
                 pass
 
             try:
-                system_audio = self.system_buffer.get_system_audio()
+                system_obj = self.system_buffer.get_system_audio()
 
-                system_text = self.whisper(system_audio["audio"])
+                system_text = self.whisper(system_obj["audio"])
 
                 if system_text is not None:
+                    del system_obj["audio"]
+                    system_obj["text"] = system_text
+
                     if not self.output_queue_system.full():
-                        self.output_queue_system.put({
-                            "text": system_text,
-                            "direction": system_audio["direction"] or "unknown"
-                            })
+                        self.output_queue_system.put(system_obj)
                         system_text = None                 
             except queue.Empty:
                 pass
