@@ -10,7 +10,7 @@ environ["CUDA_VISIBLE_DEVICES"] = "0"
 # py "D:\AI\LLMCore\LLMCore.py"
 
 class LLMCore:
-    def __init__(self):
+    def __init__(self, max_tokens=120):
         self.model = Llama(
             model_path="D:\Models\Phi-3-mini-4k-instruct-q4.gguf",
             # chat_format= "mistral-instruct",
@@ -18,7 +18,7 @@ class LLMCore:
             n_gpu_layers=-1,
             n_ctx=2048,
             n_threads=2,
-            n_batch=1024, #512 original 80tps
+            n_batch=512,
             use_mmap=True,
             use_mlock=True,
             verbose=False,
@@ -26,30 +26,34 @@ class LLMCore:
             # cache_prompt=True
         )
 
-        root ::= "{" ws "\"tts\"" ws ":" ws string ws "," ws "\"tool_calls\"" ws ":" ws tool_array ws "}"
+        self.max_tokens = max_tokens
 
-        tool_array ::= "[" ws (tool_call (ws "," ws tool_call)*)? ws "]"
+        gbnf_string = """
+            root ::= "{" ws "\"tts\"" ws ":" ws string ws "," ws "\"tool_calls\"" ws ":" ws tool_array ws "}"
 
-        tool_call ::= "{" ws "\"name\"" ws ":" ws string ws "," ws "\"arguments\"" ws ":" ws simple_object ws "}"
+            tool_array ::= "[" ws (tool_call (ws "," ws tool_call)*)? ws "]"
 
-        simple_object ::= "{" ws (pair (ws "," ws pair)*)? ws "}"
-        pair ::= string ws ":" ws simple_value
+            tool_call ::= "{" ws "\"name\"" ws ":" ws string ws "," ws "\"arguments\"" ws ":" ws simple_object ws "}"
 
-        simple_value ::= string | number | "true" | "false" | "null"
+            simple_object ::= "{" ws (pair (ws "," ws pair)*)? ws "}"
+            pair ::= string ws ":" ws simple_value
 
-        string ::= "\"" chars "\""
-        chars ::= "" | char chars
-        char ::= [^"\\] | "\\" ["\\/bfnrt]
+            simple_value ::= string | number | "true" | "false" | "null"
 
-        number ::= "-"? [0-9]+ ("." [0-9]+)?
+            string ::= "\"" chars "\""
+            chars ::= "" | char chars
+            char ::= [^"\\] | "\\" ["\\/bfnrt]
 
-        ws ::= [ \t\n\r]*
+            number ::= "-"? [0-9]+ ("." [0-9]+)?
+
+            ws ::= [ \t\n\r]*
+        """
 
         self.grammar = LlamaGrammar.from_string(gbnf_string)
 
         self.buffer = ""
 
-        self.last_emit = 0.4
+        self.emit_time = 0.5
         
         self.queue = queue.Queue()
         self.output_queue = queue.Queue()
@@ -63,12 +67,12 @@ class LLMCore:
 
     def llm_worker(self):
         while not self.done:
-            prompt = self.queue.get()
+            prompt = self.queue.get(timeout=0.1)
             if prompt is None:
                 break
 
             buffer = ""
-            last_emit = time()
+            last_emit = time.time()
 
             llm_output = self.model.create_chat_completion(
                     messages = [
@@ -81,8 +85,8 @@ class LLMCore:
                             "content": prompt,
                         }
                     ],
-                    max_tokens=100,
-                    # grammar=self.grammar,
+                    max_tokens=self.max_tokens,
+                    grammar=self.grammar,
                     stream=True
                 )
 
@@ -98,7 +102,7 @@ class LLMCore:
                 if self.should_emit(buffer, last_emit):
                     self.output_queue.put(buffer.strip())
                     buffer = ""
-                    last_emit = time()
+                    last_emit = time.time()
 
             if buffer:
                 self.output_queue.put(buffer.strip())
@@ -111,7 +115,7 @@ class LLMCore:
         if not buffer:
             return False
 
-        if buffer[-1] in ".!?":
+        if buffer[len(buffer) - 1] in ".!?" and buffer[-1] == " ":
             print("encountered .!?")
             return True
 
@@ -119,7 +123,7 @@ class LLMCore:
             print("encountered ,;:")
             return True
 
-        if len(buffer) > 20 and time() - last_emit > self.last_emit:
+        if len(buffer) > 20 and time.time() - last_emit > self.emit_time:
             print("last_emit")
             return True
 
@@ -138,13 +142,19 @@ class LLMCore:
             except queue.Empty:
                 continue
 
-            if llm_output is None:
-                break
-
-            yield llm_output
+            if llm_output is not None:
+                yield llm_output
 
     def stop(self):
         self.queue.clear()
         self.output_queue.clear()
         self.done = True
         self.worker.join()
+
+LLMCore = LLMCore()
+text = LLMCore.generate("hi, write something in order to test llama-cpp-python grammar")
+while True:
+    if text is not None:
+        for lol in text:
+            print(lol, end="")
+        text = None

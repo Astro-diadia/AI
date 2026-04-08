@@ -69,8 +69,6 @@ class Stt:
             time.sleep(0.01)
 
     def whisper(self, audio):
-        print("whisper working", audio.dtype)
-
         segments, _ = self.stt_model.transcribe(
             audio,
             beam_size=4,
