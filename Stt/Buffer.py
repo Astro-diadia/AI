@@ -76,7 +76,6 @@ class Buffer:
             if len(audio) <= self.min_audio:
                 if now - self.last_speech_sys > self.silence_time * 2:
                     if not self.output_queue_system.full():
-                        print("put in queue")
                         self.output_queue_system.put({
                             "flush": False,
                             "audio": audio,
@@ -92,7 +91,6 @@ class Buffer:
             self.buffer_direction.clear()
 
             if not self.output_queue_system.full():
-                print("put in queue")
                 self.output_queue_system.put({
                     "flush": True,
                     "audio": audio,
@@ -105,7 +103,6 @@ class Buffer:
 
             if len(audio) >= self.max_audio:
                 if not self.output_queue_system.full():
-                    print("put in queue")
                     self.output_queue_system.put({
                         "audio": audio,
                         "volume": volume,

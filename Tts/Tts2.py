@@ -63,18 +63,18 @@ class Tts:
 
         return audio
 
-# TTS =TTS()
-# text = """
-# <speak>
-# Привет. <break time="300ms"/>
-# <prosody rate="fast">Это тест новой версии силеро.</prosody>
-# </speak>
-# """
+TTS = Tts()
+text = """
+<speak>
+Привет. <break time="300ms"/>
+<prosody rate="fast">Это тест новой версии силеро.</prosody>
+</speak>
+"""
 
-# audio = TTS.speak(text)
+audio = TTS.speak(text)
 
-# sd.play(audio, 24000)
-# sd.wait()
+sd.play(audio, 24000)
+sd.wait()
 
 # Тег	Аргумент	Значения (Min / Mid / Max)	Описание
 # <speak>	—	—	Корневой тег, обязателен для SSML.

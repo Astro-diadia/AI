@@ -85,10 +85,10 @@ class Stt:
 
         return text
 
-    def get_system_text(self):
+    def get_system(self):
         return self.output_queue_system.get(timeout=0.1)
 
-    def get_mic_text(self):
+    def get_mic(self):
         return self.output_queue_mic.get(timeout=0.1)
 
     def stop(self):
