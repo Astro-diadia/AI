@@ -29,7 +29,7 @@ class LLMCore:
             cache=True,
         )
 
-        print("\n", time.time() - lol)
+        # print("\n", time.time() - lol)
 
         self.max_tokens = max_tokens
         self.content = content

@@ -30,7 +30,7 @@ while True:
                     "content": "write 1200 tokens",
                 }
             ],
-            max_tokens=1200,
+            max_tokens=200,
         )
 
     print(llm_output)

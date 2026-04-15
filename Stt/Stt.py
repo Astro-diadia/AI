@@ -6,6 +6,9 @@ import time
 import queue
 import threading
 # import numpy as np
+from os import environ
+
+environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 # py "D:\AI\Stt\Stt.py"
 
@@ -22,7 +25,7 @@ class Stt:
         # self.speaker_db = []
 
         self.mic_buffer = Buffer(0.048)
-        self.system_buffer = Buffer(0.02)
+        self.system_buffer = Buffer(0.038)
 
         self.output_queue_system = queue.Queue(maxsize=15)
         self.output_queue_mic = queue.Queue(maxsize=15)
@@ -69,9 +72,8 @@ class Stt:
             except queue.Empty:
                 pass
 
-            time.sleep(0.01)
-
     def whisper(self, audio):
+        print("lol")
         segments, _ = self.stt_model.transcribe(
             audio,
             beam_size=4,
@@ -115,3 +117,7 @@ class Stt:
     #         self.index.add(np.array([embedding]))
     #         self.speaker_db.append(new_id)
     #         return new_id
+
+stt = Stt()
+
+

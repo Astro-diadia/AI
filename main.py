@@ -1,7 +1,7 @@
-# from LLMCore.LLMCore import LLMCore
-# from MemControl.LongMemory import LongMemory
-# from MemControl.ShortMemory import ShortMemory
-# from MemControl.MidMemory import MidMemory
+from LLMCore.LLMCore import LLMCore
+from MemControl.LongMemory import LongMemory
+from MemControl.ShortMemory import ShortMemory
+from MemControl.MidMemory import MidMemory
 from Stt.Stt import Stt
 # from Tts.Tts2 import Tts
 from os import environ
@@ -22,6 +22,12 @@ class Agent:
         self.stt = stt
         self.memory_query = ""
 
+        self.volume_default = None
+
+        self.direction = "center"
+        self.text_buffer = {}
+        self.flush = False
+
         self.done = False
         self.worker = threading.Thread(
             target=self.main_cicle,
@@ -30,26 +36,50 @@ class Agent:
         self.worker.start()
 
     def main_cicle(self):
-        print("start")
         while not self.done:
             try:
-                sys_text = self.get_system_text()
-                print(sys_text["text"], "\n")
-                print(sys_text["direction"], "\n")
+                mic_input = self.stt.get_mic()
+                mic_volume = mic_input["volume"]
+                print("mic_volume", mic_volume)
+                self.flush = mic_input["flush"]
+
+                mic_text = mic_input["text"]
+
+                print(mic_text)
             except queue.Empty:
                 pass
 
             try:
-                mic_text = self.get_mic_text()
-                print(mic_text, "\n")
+                system_input = self.stt.get_system()
+                system_volume = system_input["volume"]
+                print("system_volume", system_volume)
+                self.direction = system_input["direction"]
+                self.flush = system_input["flush"]
+                
+                system_text = system_input["text"]
             except queue.Empty:
                 pass
 
-    def get_system_text(self):
-        return self.stt.get_system_text()
+            if self.flush:
+                pass
+                #call llm
+            
+            time.sleep(0.01)
 
-    def get_mic_text(self):
-        return self.stt.get_mic_text()
+    def process_volume(self, volume):
+        if self.volume_default is None:
+            self.volume_default = volume
+            
+            return None
+
+        if volume > self.volume_default:
+            pass
+            # call llm
+
+        self.volume_default = (self.volume_default + volume) / 2
+
+        
+
 
     # def build_prompt(self, user_input, system_input):
     #     history = self.short_mem.get()
@@ -87,8 +117,7 @@ class Agent:
 
     #     return output
 
-
 try:
     agent = Agent(LLMCore(), ShortMemory(), MidMemory(), LongMemory(), Stt())
 except:
-    printf("lol you fucked up", "\n", 'py "D:\AI\main.py"')
+    print("lol you fucked up", "\n", 'py "D:\AI\main.py"')
