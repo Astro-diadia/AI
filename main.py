@@ -24,9 +24,9 @@ class Agent:
 
         self.volume_default = None
 
-        self.direction = "center"
         self.text_buffer = {}
         self.flush = False
+        self.direction = "center"
 
         self.done = False
         self.worker = threading.Thread(
@@ -57,6 +57,7 @@ class Agent:
                 self.flush = system_input["flush"]
                 
                 system_text = system_input["text"]
+                print(system_text)
             except queue.Empty:
                 pass
 

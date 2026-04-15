@@ -25,7 +25,7 @@ class Stt:
         # self.speaker_db = []
 
         self.mic_buffer = Buffer(0.048)
-        self.system_buffer = Buffer(0.038)
+        self.system_buffer = Buffer(0.02)
 
         self.output_queue_system = queue.Queue(maxsize=15)
         self.output_queue_mic = queue.Queue(maxsize=15)
@@ -73,12 +73,11 @@ class Stt:
                 pass
 
     def whisper(self, audio):
-        print("lol")
         segments, _ = self.stt_model.transcribe(
             audio,
             beam_size=4,
             vad_filter=False,
-            condition_on_previous_text=False
+            condition_on_previous_text=True
         )
         text = " ".join(seg.text.strip() for seg in segments).strip()
 
