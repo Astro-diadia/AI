@@ -20,13 +20,16 @@ class Agent:
         self.mid_mem = mid_mem
         self.long_mem = long_mem
         self.stt = stt
+
         self.memory_query = ""
 
-        self.volume_default = None
+        self.mic_volume_processor = process_volume()
+        self.system_volume_processor = process_volume()
 
-        self.text_buffer = {}
-        self.flush = False
-        self.direction = "center"
+        self.text_buffer = {
+            "system_text": [],
+            "mic_text": [],
+        }
 
         self.done = False
         self.worker = threading.Thread(
@@ -36,72 +39,67 @@ class Agent:
         self.worker.start()
 
     def main_cicle(self):
-        print("start")
         while not self.done:
             try:
                 mic_input = self.stt.get_mic()
-                mic_volume = mic_input["volume"]
-                self.flush = mic_input["flush"]
+
+                self.mic_flush = mic_input["flush"]
+
+                self.mic_volume = mic_input["volume"]
 
                 mic_text = mic_input["text"]
+                if mic_text is not None:
+                    self.text_buffer["mic_text"].append(mic_text)
             except queue.Empty:
                 pass
 
             try:
                 system_input = self.stt.get_system()
-                system_volume = system_input["volume"]
+
+                self.system_flush = system_input["flush"]
+
+                self.system_volume = system_input["volume"]
+
                 self.direction = system_input["direction"]
-                self.flush = system_input["flush"]
                 
                 system_text = system_input["text"]
-                print(system_text)
+                if system_text is not None:
+                    self.text_buffer["system_text"].append(system_text)
             except queue.Empty:
                 pass
 
-    #         if self.flush:
-    #             pass
-    #             #call llm
+            if self.system_flush or self.system_volume_processor.process_volume(self.system_volume):
+                print("volume system")
+                #callllm("systyem end, sumarise what user said")
+ 
+            if self.mic_flush or self.mic_volume_processor.process_volume(self.mic_volume):
+                print("volume mic")
+                #callllm("user end, sumarise what systyem said")
             
-    #         time.sleep(0.01)
+            time.sleep(0.01)
 
-    # def process_volume(self, volume):
-    #     if self.volume_default is None:
-    #         self.volume_default = volume
-            
-    #         return None
+    def build_prompt(self):
+        history = self.short_mem.get()
 
-    #     if volume > self.volume_default:
-    #         pass
-    #         # call llm
+        prompt = "Conversation history:\n"
 
-    #     self.volume_default = (self.volume_default + volume) / 2
+        for message in history:
+            prompt += f"{message['role']}: {message['content']}\n"
 
-        
+        if self.memory_query != "":
+            memory = self.mid_mem.retrieve_similar(self.memory_query)
+            prompt += "Relevant memory:\n"
 
+            if len(memory) > 0:
+                prompt += "\n".join(memory) + "\n"
+            else:
+                prompt += "\n".join(self.long_mem.retrieve_similar(self.memory_query)) + "\n"
 
-    # def build_prompt(self, user_input, system_input):
-    #     history = self.short_mem.get()
+            self.memory_query = ""
 
-    #     prompt = "Conversation history:\n"
+        self.text_buffer
 
-    #     for message in history:
-    #         prompt += f"{message['role']}: {message['content']}\n"
-
-    #     if self.memory_query != "":
-    #         memory = self.mid_mem.retrieve_similar(self.memory_query)
-    #         prompt += "Relevant memory:\n"
-
-    #         if len(memory) > 0:
-    #             prompt += "\n".join(memory) + "\n"
-    #         else:
-    #             prompt += "\n".join(self.long_mem.retrieve_similar(self.memory_query)) + "\n"
-
-    #         self.memory_query = ""
-
-    #     prompt += f"\nCurrent user message:\n {user_input}\n"
-    #     prompt += f"\nCurrent system sounds:\n {system_input}\n"
-
-    #     return prompt
+        return prompt
 
     # def run_turn(self, user_input, system_input):
     #     self.short_mem.add(content=user_input, speaker_id="user1", role="user", mid_memory = self.mid_mem)   
@@ -115,7 +113,44 @@ class Agent:
 
     #     return output
 
-try:
-    agent = Agent("LLMCore()", "ShortMemory()", "MidMemory()", "LongMemory()", Stt())
-except:
-    print("lol you fucked up", "\n", 'py "D:\AI\main.py"')
+
+class process_volume:
+        def __init__(self):
+            self.prev_volume = None
+            self.noise_floor = None
+            self.last_trigger_time = 0.0
+
+        def process_volume(self, volume):
+            now = time.time()
+
+            if self.prev_volume is None:
+                self.prev_volume = volume
+                self.noise_floor = volume
+                return False
+
+            alpha_fast = 0.2
+            smoothed = alpha_fast * volume + (1 - alpha_fast) * self.prev_volume
+
+            if smoothed < self.noise_floor:
+                alpha_slow = 0.05
+            else:
+                alpha_slow = 0.005
+
+            self.noise_floor = alpha_slow * smoothed + (1 - alpha_slow) * self.noise_floor
+            self.noise_floor = max(self.noise_floor, 1e-4)
+
+            delta = smoothed - self.noise_floor
+
+            trigger_threshold = max(0.005, self.noise_floor * 3)
+            
+            cooldown = 0.8
+
+            if delta > trigger_threshold and (now - self.last_trigger_time) > cooldown:
+                self.last_trigger_time = now
+                self.prev_volume = smoothed
+                return True
+
+            self.prev_volume = smoothed
+            return False
+
+agent = Agent("LLMCore()", "ShortMemory()", "MidMemory()", "LongMemory()", Stt())
