@@ -33,7 +33,7 @@ class AudioCapture:
             device=device,
             samplerate=self.samplerate,
             blocksize=self.blocksize,
-            channels=1,
+            channels=2,
             callback=self._mic_callback
         )
 

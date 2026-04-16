@@ -36,23 +36,20 @@ class Agent:
         self.worker.start()
 
     def main_cicle(self):
+        print("start")
         while not self.done:
             try:
                 mic_input = self.stt.get_mic()
                 mic_volume = mic_input["volume"]
-                print("mic_volume", mic_volume)
                 self.flush = mic_input["flush"]
 
                 mic_text = mic_input["text"]
-
-                print(mic_text)
             except queue.Empty:
                 pass
 
             try:
                 system_input = self.stt.get_system()
                 system_volume = system_input["volume"]
-                print("system_volume", system_volume)
                 self.direction = system_input["direction"]
                 self.flush = system_input["flush"]
                 
@@ -61,23 +58,23 @@ class Agent:
             except queue.Empty:
                 pass
 
-            if self.flush:
-                pass
-                #call llm
+    #         if self.flush:
+    #             pass
+    #             #call llm
             
-            time.sleep(0.01)
+    #         time.sleep(0.01)
 
-    def process_volume(self, volume):
-        if self.volume_default is None:
-            self.volume_default = volume
+    # def process_volume(self, volume):
+    #     if self.volume_default is None:
+    #         self.volume_default = volume
             
-            return None
+    #         return None
 
-        if volume > self.volume_default:
-            pass
-            # call llm
+    #     if volume > self.volume_default:
+    #         pass
+    #         # call llm
 
-        self.volume_default = (self.volume_default + volume) / 2
+    #     self.volume_default = (self.volume_default + volume) / 2
 
         
 
@@ -119,6 +116,6 @@ class Agent:
     #     return output
 
 try:
-    agent = Agent(LLMCore(), ShortMemory(), MidMemory(), LongMemory(), Stt())
+    agent = Agent("LLMCore()", "ShortMemory()", "MidMemory()", "LongMemory()", Stt())
 except:
     print("lol you fucked up", "\n", 'py "D:\AI\main.py"')

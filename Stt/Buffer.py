@@ -2,25 +2,28 @@ import numpy as np
 import time
 import queue
 import threading
-from Stt.AudioCapture import AudioCapture
+import webrtcvad
+
+# py "D:\AI\Stt\Buffer.py"
 
 class Buffer:
-    def __init__(self, speech_threshold=0.048):
-        self.speech_threshold = speech_threshold
-        self.silence_time = 0.7
-        self.buffer_stt_mic = []
-        self.buffer_stt_sys = []
-        self.last_speech_mic = None
-        self.last_speech_sys = None
+    def __init__(self, volume_threshold=0.048, is_mic=True, get_audio_function=None):
+        self.is_mic = is_mic
+        self.volume_threshold = volume_threshold 
+        self.get_audio_function = get_audio_function
 
-        self.AudioCapture = AudioCapture()
-        self.AudioCapture.capture_mic()
-        self.AudioCapture.capture_system()
+        self.buffer = []
+        self.buffer_len = 0
 
-        self.max_audio = 16000 * 2.6 # 3 for quality?
+        self.silence_frame = 12
+        self.silence_frame_short = 6
+        self.silence_counter = 0
+        self.vad = webrtcvad.Vad(2)
+        self.frame_size = 320
 
-        self.output_queue_system = queue.Queue(maxsize=15)
-        self.output_queue_mic = queue.Queue(maxsize=15)
+        self.max_audio = 16000 * 2.6
+
+        self.output_queue = queue.Queue(maxsize=15)
 
         self.prev_ratio = 0.0
         self.buffer_direction = []
@@ -36,120 +39,86 @@ class Buffer:
     def buffer_main(self):
         while not self.done:
             try:
-                chunk = self.AudioCapture.get_mic_audio()
-                self.process_mic(chunk=chunk)
+                block = self.get_audio_function()
+                self.process_block(block)
             except queue.Empty:
                 pass
 
-            try:
-                chunk = self.AudioCapture.get_system_audio()
-                self.process_system(chunk=chunk)
-            except queue.Empty:
-                pass
+            time.sleep(0.01)
 
-    def process_system(self, chunk):
-        now = time.time()
+    def process_block(self, block):
+        volume = np.sqrt((block**2).mean())
 
-        volume = np.sqrt((chunk**2).mean())
+        if not self.is_mic:
+            self.classify_direction(block)
 
-        if volume > self.speech_threshold:
-            self.classify_direction(chunk)
+        # if volume < self.volume_threshold:
+        #     self.silence_counter += 1
 
-            self.buffer_stt_sys.append(chunk)
+        if block.ndim == 2:
+            block = block.mean(axis=1)
 
-            self.last_speech_sys = now
+        if self.is_speech(block):
+            self.buffer.append(block)
+            self.buffer_len += 1024
 
-        if self.last_speech_sys is None:
-            return None
-
-        audio_len = sum(len(c) for c in self.buffer_stt_sys)
-
-        if now - self.last_speech_sys >= self.silence_time:
-            if audio_len == 0:
+        if self.silence_counter >= self.silence_frame:
+            if self.buffer_len == 0:
                 return
 
-            audio = np.concatenate(self.buffer_stt_sys).mean(axis=1)
+            self.silence_counter = 0
+            self.buffer_len = 0
 
-            self.buffer_stt_sys.clear()
-            self.last_speech_sys = None
+            audio = np.concatenate(self.buffer)
 
-            if not self.output_queue_system.full():
-                self.output_queue_system.put({
-                    "flush": True,
+            self.buffer.clear()
+
+            if not self.output_queue.full():
+                data = {
+                    "flush": False,
                     "audio": audio,
-                    "volume": volume,
-                    "direction": self.direction
-                })
+                    "volume": volume
+                }
+
+                if not self.is_mic:
+                    data["direction"] = self.direction
+                self.output_queue.put(data)
+
                 return None
         
-        if audio_len >= self.max_audio:
-            audio = np.concatenate(self.buffer_stt_sys).mean(axis=1)
-            if not self.output_queue_system.full():
-                self.output_queue_system.put({
-                    "audio": audio,
-                    "volume": volume,
-                    "flush": False,
-                    "direction": self.direction
-                })
-                overlap = int(16000 * 0.2)
-                self.buffer_stt_sys = [audio[-overlap:]]
-                self.last_speech_sys = None
+        if self.buffer_len >= self.max_audio and self.silence_counter >= self.silence_frame_short:
+            self.silence_counter = 0
+            self.buffer_len = 0
 
-        return None
-
-    def process_mic(self, chunk):
-        now = time.time()
-
-        volume = np.sqrt((chunk**2).mean())
-
-        if volume > self.speech_threshold:
-            self.buffer_stt_mic.append(chunk)
-            self.last_speech_mic = now
-
-        if self.last_speech_mic is None:
-            return None
-
-        audio_len = sum(len(c) for c in self.buffer_stt_mic)
-
-        if now - self.last_speech_mic >= self.silence_time:
-            if audio_len == 0:
-                return
-
-            audio = np.concatenate(self.buffer_stt_mic).mean(axis=1)
-
-            if not self.output_queue_mic.full():
-                self.output_queue_mic.put({
-                    "flush": True,
-                    "audio": audio,
-                    "volume": volume
-                })
-                self.buffer_stt_mic.clear()
-                self.last_speech_mic = None
-                return None
-
-        if audio_len >= self.max_audio:
-            audio = np.concatenate(self.buffer_stt_mic).mean(axis=1)
-
-            if not self.output_queue_mic.full():
-                self.output_queue_mic.put({
+            audio = np.concatenate(self.buffer)
+            
+            if not self.output_queue.full():
+                data = {
                     "flush": False,
                     "audio": audio,
                     "volume": volume
-                })
+                }
+
+                if not self.is_mic:
+                    data["direction"] = self.direction
+
+                self.output_queue.put(data)
+
                 overlap = int(16000 * 0.2)
-                self.buffer_stt_mic = [audio[-overlap:]]
-                self.last_speech_mic = None
+
+                self.buffer = [audio[-overlap:]]
+                self.buffer_len = overlap
 
         return None
 
-    def classify_direction(self, chunk, threshold=0.0):
-        self.buffer_direction.append(chunk)
+    def classify_direction(self, block, threshold=0.0):
+        self.buffer_direction.append(block)
 
         if len(self.buffer_direction) >= 4:
-            big_chunk = np.concatenate(self.buffer_direction)
+            four_block = np.concatenate(self.buffer_direction)
 
-            left = np.abs(big_chunk[:, 0]).mean()
-            right = np.abs(big_chunk[:, 1]).mean()
+            left = np.abs(four_block[:, 0]).mean()
+            right = np.abs(four_block[:, 1]).mean()
 
             ratio = (left - right) / (left + right + 1e-6)
 
@@ -166,11 +135,27 @@ class Buffer:
 
         return None
 
-    def get_mic_audio(self):
-        return self.output_queue_mic.get(timeout=0.1)
+    def is_speech(self, chunk_float32):
+        chunk_int16 = (chunk_float32 * 32768).astype(np.int16)
 
-    def get_system_audio(self):
-        return self.output_queue_system.get(timeout=0.1)
+        speech_detected = False
+
+        for i in range(0, len(chunk_int16) - self.frame_size + 1, self.frame_size):
+            frame = chunk_int16[i:i+self.frame_size]
+
+            if self.vad.is_speech(frame.tobytes(), 16000):
+                speech_detected = True
+
+        if speech_detected:
+            self.silence_counter = 0
+        else:
+            self.silence_counter += 1
+
+        return speech_detected
+
+    def get_audio(self):
+        return self.output_queue.get(timeout=0.1)
 
     def stop(self):
         self.done = True
+         

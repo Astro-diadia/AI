@@ -7,6 +7,7 @@ import queue
 import threading
 # import numpy as np
 from os import environ
+from Stt.AudioCapture import AudioCapture
 
 environ["CUDA_VISIBLE_DEVICES"] = "1"
 
@@ -24,8 +25,12 @@ class Stt:
         # self.index = IndexFlatIP(self.dim)
         # self.speaker_db = []
 
-        self.mic_buffer = Buffer(0.048)
-        self.system_buffer = Buffer(0.02)
+        self.AudioCapture = AudioCapture()
+        self.AudioCapture.capture_mic()
+        self.AudioCapture.capture_system()
+
+        self.mic_buffer = Buffer(0.048, True, self.AudioCapture.get_mic_audio)
+        self.system_buffer = Buffer(0.02, False, self.AudioCapture.get_system_audio)
 
         self.output_queue_system = queue.Queue(maxsize=15)
         self.output_queue_mic = queue.Queue(maxsize=15)
@@ -43,7 +48,7 @@ class Stt:
 
         while not self.done:
             try:
-                mic_obj = self.mic_buffer.get_mic_audio()
+                mic_obj = self.mic_buffer.get_audio()
 
                 mic_text = self.whisper(mic_obj["audio"])
 
@@ -58,8 +63,9 @@ class Stt:
                 pass
 
             try:
-                system_obj = self.system_buffer.get_system_audio()
+                system_obj = self.system_buffer.get_audio()
 
+                print(system_obj["audio"])
                 system_text = self.whisper(system_obj["audio"])
 
                 if system_text is not None:
@@ -116,7 +122,3 @@ class Stt:
     #         self.index.add(np.array([embedding]))
     #         self.speaker_db.append(new_id)
     #         return new_id
-
-stt = Stt()
-
-
