@@ -7,7 +7,7 @@ import webrtcvad
 # py "D:\AI\Stt\Buffer.py"
 
 class Buffer:
-    def __init__(self, volume_threshold=0.048, is_mic=True, get_audio_function=None):
+    def __init__(self, volume_threshold=0.003, is_mic=True, get_audio_function=None):
         self.is_mic = is_mic
         self.volume_threshold = volume_threshold 
         self.get_audio_function = get_audio_function
@@ -16,12 +16,12 @@ class Buffer:
         self.buffer_len = 0
 
         self.silence_frame = 12
-        self.silence_frame_short = 6
+        self.silence_frame_short = 4
         self.silence_counter = 0
         self.vad = webrtcvad.Vad(2)
         self.frame_size = 320
 
-        self.max_audio = 16000 * 2.6
+        self.max_audio = 16000 * 2.4
 
         self.output_queue = queue.Queue(maxsize=15)
 
@@ -52,11 +52,13 @@ class Buffer:
         if not self.is_mic:
             self.classify_direction(block)
 
-        # if volume < self.volume_threshold:
-        #     self.silence_counter += 1
-
         if block.ndim == 2:
             block = block.mean(axis=1)
+
+        if volume < self.volume_threshold:
+            self.silence_counter += 1
+            if self.buffer_len == 0:
+                return None
 
         if self.is_speech(block):
             self.buffer.append(block)
@@ -64,7 +66,7 @@ class Buffer:
 
         if self.silence_counter >= self.silence_frame:
             if self.buffer_len == 0:
-                return
+                return None
 
             self.silence_counter = 0
             self.buffer_len = 0
@@ -75,7 +77,7 @@ class Buffer:
 
             if not self.output_queue.full():
                 data = {
-                    "flush": False,
+                    "flush": True,
                     "audio": audio,
                     "volume": volume
                 }
